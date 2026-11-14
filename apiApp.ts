@@ -10,8 +10,8 @@ import { registerBillPdfRoutes } from "./pdfInvoice";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const moduleFilename = fileURLToPath(import.meta.url);
+const moduleDirname = path.dirname(moduleFilename);
 
 const app = express();
 
@@ -171,7 +171,7 @@ registerStylistRoutes(
     const key = process.env.GEMINI_API_KEY || apiKey;
     return key ? new GoogleGenAI({ apiKey: key, httpOptions: { headers: { "User-Agent": "aistudio-build" } } }) : null;
   },
-  __dirname
+  moduleDirname
 );
 
 registerNotificationRoutes(app);
