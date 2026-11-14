@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered customer or merchant account profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique user identifier" },
+        "name": { "type": "string", "description": "Full name / login username" },
+        "username": { "type": "string", "description": "Customer login username" },
+        "email": { "type": "string", "description": "Email address" },
+        "phone": { "type": "string", "description": "Phone number" },
+        "password": { "type": "string", "description": "Account password" },
+        "role": { "type": "string", "enum": ["customer", "merchant", "admin"], "description": "User role" },
+        "avatarUrl": { "type": "string", "description": "Profile picture URL" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" },
+        "savedAddresses": { "type": "array", "description": "Saved shipping addresses" },
+        "bankDetails": { "type": "object", "description": "Payout or payment bank details" },
+        "wishlistProductIds": { "type": "array", "description": "Favorite product IDs" }
+      },
+      "required": ["id", "name", "phone", "email", "password"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Apparel article in the catalog, synchronized with Merchant Hub",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Article ID" },
+        "name": { "type": "string", "description": "Garment name" },
+        "description": { "type": "string", "description": "Garment description and cut details" },
+        "price": { "type": "number", "description": "Current selling price in INR" },
+        "originalPrice": { "type": "number", "description": "Original retail price in INR" },
+        "category": { "type": "string", "description": "Garment category" },
+        "images": { "type": "array", "description": "Product photograph URLs (Front and Back Print)" },
+        "backImage": { "type": "string", "description": "Optional back print / back view photograph URL" },
+        "sizes": { "type": "array", "description": "Available sizes" },
+        "colors": { "type": "array", "description": "Available colorways with name and hex" },
+        "inStock": { "type": "boolean", "description": "In stock availability" },
+        "stockCount": { "type": "number", "description": "Available inventory units" },
+        "isNew": { "type": "boolean", "description": "New arrival flag" },
+        "isTrending": { "type": "boolean", "description": "Trending collection flag" },
+        "showInSlideshow": { "type": "boolean", "description": "Displayed in storefront hero slideshow" },
+        "updatedAt": { "type": "string", "description": "Last inventory update timestamp" }
+      },
+      "required": ["id", "name", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Checkout purchase record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique order ID" },
+        "userId": { "type": "string", "description": "User ID of customer" },
+        "customerName": { "type": "string", "description": "Customer name" },
+        "customerPhone": { "type": "string", "description": "Customer phone" },
+        "customerEmail": { "type": "string", "description": "Customer email for confirmations and payment bill delivery" },
+        "customerAddress": { "type": "string", "description": "Customer delivery address" },
+        "deliveryMethod": { "type": "string", "description": "Fulfillment mode (pickup or delivery)" },
+        "items": { "type": "array", "description": "Purchased items" },
+        "totalAmount": { "type": "number", "description": "Total order amount" },
+        "paymentMethod": { "type": "string", "description": "Payment method label" },
+        "paymentChannel": { "type": "string", "enum": ["cod", "upi", "card"], "description": "Payment option selected (COD, UPI, or Card)" },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "paid"], "description": "Payment status" },
+        "transactionId": { "type": "string", "description": "Gateway transaction reference" },
+        "billNumber": { "type": "string", "description": "Generated tax invoice / sample bill number" },
+        "razorpayOrderId": { "type": "string", "description": "Razorpay order ID" },
+        "razorpayPaymentId": { "type": "string", "description": "Razorpay payment ID or customer UTR reference" },
+        "razorpaySignature": { "type": "string", "description": "Razorpay signature verification hash" },
+        "razorpayMeUrl": { "type": "string", "description": "Merchant Razorpay.me payment link used" },
+        "gatewayConfirmedAt": { "type": "string", "description": "Timestamp when Razorpay gateway confirmed payment" },
+        "pdfUrl": { "type": "string", "description": "Generated PDF invoice URL" },
+        "pdfFilename": { "type": "string", "description": "Generated PDF invoice filename" },
+        "status": { "type": "string", "description": "Order fulfillment status" },
+        "createdAt": { "type": "string", "description": "Order placement date" },
+        "dispatchStatus": { "type": "object", "description": "WhatsApp, SMS, Email confirmation and Payment Bill dispatch tracking" }
+      },
+      "required": ["id", "customerName", "totalAmount", "status"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Single merchant administrator account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Admin document identifier" },
+        "username": { "type": "string", "description": "Admin login username" },
+        "password": { "type": "string", "description": "Admin login password" },
+        "role": { "type": "string", "enum": ["admin"], "description": "Administrator role" },
+        "createdAt": { "type": "string", "description": "Account creation timestamp" }
+      },
+      "required": ["id", "username", "password", "role"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Manually published customer review managed from Merchant Hub and optionally linked to a registered user profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique review identifier" },
+        "reviewerName": { "type": "string", "description": "Customer display name" },
+        "reviewerEmail": { "type": "string", "description": "Customer email used to link profile" },
+        "reviewerPhone": { "type": "string", "description": "Customer phone used to link profile" },
+        "matchedUserId": { "type": "string", "description": "Linked registered user profile document ID" },
+        "reviewerAvatar": { "type": "string", "description": "Profile avatar URL if matched" },
+        "roleOrCompany": { "type": "string", "description": "Optional customer role or label" },
+        "productId": { "type": "string", "description": "Optional reviewed article ID" },
+        "productName": { "type": "string", "description": "Optional reviewed article title" },
+        "rating": { "type": "number", "description": "Star rating from 1 to 5" },
+        "highlight": { "type": "string", "description": "Short review headline" },
+        "content": { "type": "string", "description": "Full customer review text" },
+        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
+      },
+      "required": ["id", "reviewerName", "rating", "highlight", "content", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User account profiles, credentials, and settings"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Single administrator account for Merchant Hub access"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Storefront articles and merchant catalog products"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer checkout orders and receipts"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Merchant-published customer reviews linked with user profiles"
+    }
+  }
+}
