@@ -147,22 +147,22 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1490,
     category: "Oversized Tshirts (Men & Women)",
     images: [
-      "/src/assets/images/sample_oversized_tee_1794638342281.jpg",
-      "/src/assets/images/sample_oversized_back_1794643591280.jpg"
+      "/assets/images/sample_oversized_tee_1794638342281.jpg",
+      "/assets/images/sample_oversized_back_1794643591280.jpg"
     ],
-    backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+    backImage: "/assets/images/sample_oversized_back_1794643591280.jpg",
     colors: [
       {
         name: "Washed Charcoal",
         hex: "#28282A",
-        image: "/src/assets/images/sample_oversized_tee_1794638342281.jpg",
-        backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg"
+        image: "/assets/images/sample_oversized_tee_1794638342281.jpg",
+        backImage: "/assets/images/sample_oversized_back_1794643591280.jpg"
       },
       {
         name: "Warm Oat Cream",
         hex: "#EAE1D0",
-        image: "/src/assets/images/sample_drop_shoulder_1794638341648.jpg",
-        backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+        image: "/assets/images/sample_drop_shoulder_1794638341648.jpg",
+        backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
       }
     ],
     sizes: ["XS", "S", "M", "L", "XL", "XXL"],
@@ -187,22 +187,22 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1590,
     category: "Drop Shoulder (Men & Women)",
     images: [
-      "/src/assets/images/sample_drop_shoulder_1794638341648.jpg",
-      "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+      "/assets/images/sample_drop_shoulder_1794638341648.jpg",
+      "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
     ],
-    backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+    backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
     colors: [
       {
         name: "Oat Cream",
         hex: "#EAE1D0",
-        image: "/src/assets/images/sample_drop_shoulder_1794638341648.jpg",
-        backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+        image: "/assets/images/sample_drop_shoulder_1794638341648.jpg",
+        backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
       },
       {
         name: "Pitch Charcoal",
         hex: "#28282A",
-        image: "/src/assets/images/sample_oversized_tee_1794638342281.jpg",
-        backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg"
+        image: "/assets/images/sample_oversized_tee_1794638342281.jpg",
+        backImage: "/assets/images/sample_oversized_back_1794643591280.jpg"
       }
     ],
     sizes: ["S", "M", "L", "XL", "XXL"],
@@ -227,16 +227,16 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1690,
     category: "Polo Tshirts (Men & Women)",
     images: [
-      "/src/assets/images/sample_polo_tshirt_1794638342678.jpg",
-      "/src/assets/images/sample_polo_back_1794643591091.jpg"
+      "/assets/images/sample_polo_tshirt_1794638342678.jpg",
+      "/assets/images/sample_polo_back_1794643591091.jpg"
     ],
-    backImage: "/src/assets/images/sample_polo_back_1794643591091.jpg",
+    backImage: "/assets/images/sample_polo_back_1794643591091.jpg",
     colors: [
       {
         name: "Forest Pine",
         hex: "#1F4E3D",
-        image: "/src/assets/images/sample_polo_tshirt_1794638342678.jpg",
-        backImage: "/src/assets/images/sample_polo_back_1794643591091.jpg"
+        image: "/assets/images/sample_polo_tshirt_1794638342678.jpg",
+        backImage: "/assets/images/sample_polo_back_1794643591091.jpg"
       }
     ],
     sizes: ["XS", "S", "M", "L", "XL", "XXL"],
@@ -261,12 +261,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1890,
     category: "Shirts (Men)",
     images: [
-      "/src/assets/images/sample_mens_shirt_1794638343165.jpg",
-      "/src/assets/images/sample_mens_white_shirt_1794638361265.jpg"
+      "/assets/images/sample_mens_shirt_1794638343165.jpg",
+      "/assets/images/sample_mens_white_shirt_1794638361265.jpg"
     ],
     colors: [
-      { name: "Slate Indigo", hex: "#546A7B", image: "/src/assets/images/sample_mens_shirt_1794638343165.jpg" },
-      { name: "Crisp White", hex: "#F6F6F4", image: "/src/assets/images/sample_mens_white_shirt_1794638361265.jpg" }
+      { name: "Slate Indigo", hex: "#546A7B", image: "/assets/images/sample_mens_shirt_1794638343165.jpg" },
+      { name: "Crisp White", hex: "#F6F6F4", image: "/assets/images/sample_mens_white_shirt_1794638361265.jpg" }
     ],
     sizes: ["M", "L", "XL", "XXL"],
     isAvailable: true,
@@ -290,12 +290,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1790,
     category: "Shirts (Men)",
     images: [
-      "/src/assets/images/sample_mens_white_shirt_1794638361265.jpg",
-      "/src/assets/images/sample_mens_shirt_1794638343165.jpg"
+      "/assets/images/sample_mens_white_shirt_1794638361265.jpg",
+      "/assets/images/sample_mens_shirt_1794638343165.jpg"
     ],
     colors: [
-      { name: "Crisp White", hex: "#F6F6F4", image: "/src/assets/images/sample_mens_white_shirt_1794638361265.jpg" },
-      { name: "Slate Indigo", hex: "#546A7B", image: "/src/assets/images/sample_mens_shirt_1794638343165.jpg" }
+      { name: "Crisp White", hex: "#F6F6F4", image: "/assets/images/sample_mens_white_shirt_1794638361265.jpg" },
+      { name: "Slate Indigo", hex: "#546A7B", image: "/assets/images/sample_mens_shirt_1794638343165.jpg" }
     ],
     sizes: ["S", "M", "L", "XL", "XXL"],
     isAvailable: true,
@@ -318,12 +318,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 3290,
     category: "Sarees (Women)",
     images: [
-      "/src/assets/images/sample_womens_saree_1794638343806.jpg",
-      "/src/assets/images/sample_crimson_saree_1794638361418.jpg"
+      "/assets/images/sample_womens_saree_1794638343806.jpg",
+      "/assets/images/sample_crimson_saree_1794638361418.jpg"
     ],
     colors: [
-      { name: "Emerald Teal", hex: "#0E6655", image: "/src/assets/images/sample_womens_saree_1794638343806.jpg" },
-      { name: "Royal Crimson", hex: "#7B1E2B", image: "/src/assets/images/sample_crimson_saree_1794638361418.jpg" }
+      { name: "Emerald Teal", hex: "#0E6655", image: "/assets/images/sample_womens_saree_1794638343806.jpg" },
+      { name: "Royal Crimson", hex: "#7B1E2B", image: "/assets/images/sample_crimson_saree_1794638361418.jpg" }
     ],
     sizes: ["Free Size"],
     isAvailable: true,
@@ -347,12 +347,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 3490,
     category: "Sarees (Women)",
     images: [
-      "/src/assets/images/sample_crimson_saree_1794638361418.jpg",
-      "/src/assets/images/sample_womens_saree_1794638343806.jpg"
+      "/assets/images/sample_crimson_saree_1794638361418.jpg",
+      "/assets/images/sample_womens_saree_1794638343806.jpg"
     ],
     colors: [
-      { name: "Royal Crimson", hex: "#7B1E2B", image: "/src/assets/images/sample_crimson_saree_1794638361418.jpg" },
-      { name: "Emerald Teal", hex: "#0E6655", image: "/src/assets/images/sample_womens_saree_1794638343806.jpg" }
+      { name: "Royal Crimson", hex: "#7B1E2B", image: "/assets/images/sample_crimson_saree_1794638361418.jpg" },
+      { name: "Emerald Teal", hex: "#0E6655", image: "/assets/images/sample_womens_saree_1794638343806.jpg" }
     ],
     sizes: ["Free Size"],
     isAvailable: true,
@@ -375,12 +375,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1990,
     category: "Chididhar Top (Women)",
     images: [
-      "/src/assets/images/sample_chididhar_top_1794638343542.jpg",
-      "/src/assets/images/sample_ivory_chididhar_1794638362189.jpg"
+      "/assets/images/sample_chididhar_top_1794638343542.jpg",
+      "/assets/images/sample_ivory_chididhar_1794638362189.jpg"
     ],
     colors: [
-      { name: "Dusty Rose", hex: "#B87478", image: "/src/assets/images/sample_chididhar_top_1794638343542.jpg" },
-      { name: "Pastel Sage", hex: "#B5C7B3", image: "/src/assets/images/sample_ivory_chididhar_1794638362189.jpg" }
+      { name: "Dusty Rose", hex: "#B87478", image: "/assets/images/sample_chididhar_top_1794638343542.jpg" },
+      { name: "Pastel Sage", hex: "#B5C7B3", image: "/assets/images/sample_ivory_chididhar_1794638362189.jpg" }
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     isAvailable: true,
@@ -404,12 +404,12 @@ export const DEFAULT_PRODUCTS: Product[] = [
     price: 1850,
     category: "Chididhar Top (Women)",
     images: [
-      "/src/assets/images/sample_ivory_chididhar_1794638362189.jpg",
-      "/src/assets/images/sample_chididhar_top_1794638343542.jpg"
+      "/assets/images/sample_ivory_chididhar_1794638362189.jpg",
+      "/assets/images/sample_chididhar_top_1794638343542.jpg"
     ],
     colors: [
-      { name: "Pastel Sage", hex: "#B5C7B3", image: "/src/assets/images/sample_ivory_chididhar_1794638362189.jpg" },
-      { name: "Dusty Rose", hex: "#B87478", image: "/src/assets/images/sample_chididhar_top_1794638343542.jpg" }
+      { name: "Pastel Sage", hex: "#B5C7B3", image: "/assets/images/sample_ivory_chididhar_1794638362189.jpg" },
+      { name: "Dusty Rose", hex: "#B87478", image: "/assets/images/sample_chididhar_top_1794638343542.jpg" }
     ],
     sizes: ["XS", "S", "M", "L", "XL"],
     isAvailable: true,
@@ -433,17 +433,17 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Oversized Plain",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+      "/assets/images/sample_oversized_back_1794643591280.jpg",
       "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+    backImage: "/assets/images/sample_oversized_back_1794643591280.jpg",
     colors: [
-      { name: "Pitch Black", hex: "#121212", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" },
-      { name: "Warm Cream", hex: "#EADCC9", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
-      { name: "Sage Green", hex: "#7E8F7C", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_polo_back_1794643591091.jpg" },
-      { name: "Slate Blue", hex: "#5C6B73", image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" }
+      { name: "Pitch Black", hex: "#121212", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" },
+      { name: "Warm Cream", hex: "#EADCC9", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
+      { name: "Sage Green", hex: "#7E8F7C", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_polo_back_1794643591091.jpg" },
+      { name: "Slate Blue", hex: "#5C6B73", image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" }
     ],
     sizes: ["S", "M", "L", "XL", "XXL"],
     isAvailable: true,
@@ -468,17 +468,17 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Acid Wash",
     images: [
       "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+      "/assets/images/sample_oversized_back_1794643591280.jpg",
       "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1527719327859-c6ce80353573?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+    backImage: "/assets/images/sample_oversized_back_1794643591280.jpg",
     colors: [
-      { name: "Mineral Grey", hex: "#3A3E41", image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" },
-      { name: "Pure White", hex: "#FFFFFF", image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
-      { name: "Rich Navy", hex: "#1D2A44", image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" },
-      { name: "Terracotta Rust", hex: "#A34A38", image: "https://images.unsplash.com/photo-1527719327859-c6ce80353573?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" }
+      { name: "Mineral Grey", hex: "#3A3E41", image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" },
+      { name: "Pure White", hex: "#FFFFFF", image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
+      { name: "Rich Navy", hex: "#1D2A44", image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" },
+      { name: "Terracotta Rust", hex: "#A34A38", image: "https://images.unsplash.com/photo-1527719327859-c6ce80353573?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" }
     ],
     sizes: ["M", "L", "XL"],
     isAvailable: true,
@@ -503,13 +503,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Oversized Printed",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+      "/assets/images/sample_oversized_back_1794643591280.jpg",
       "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+    backImage: "/assets/images/sample_oversized_back_1794643591280.jpg",
     colors: [
-      { name: "Pitch Black", hex: "#121212", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" },
-      { name: "Warm Cream", hex: "#EADCC9", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" }
+      { name: "Pitch Black", hex: "#121212", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" },
+      { name: "Warm Cream", hex: "#EADCC9", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" }
     ],
     sizes: ["S", "M", "L", "XL"],
     isAvailable: true,
@@ -534,15 +534,15 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Jersey",
     images: [
       "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+      "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
       "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+    backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
     colors: [
-      { name: "Olive Drab", hex: "#4B5320", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_polo_back_1794643591091.jpg" },
-      { name: "Oatmeal Melange", hex: "#D6CFC7", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
-      { name: "Dusty Blue", hex: "#7E90A3", image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" }
+      { name: "Olive Drab", hex: "#4B5320", image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_polo_back_1794643591091.jpg" },
+      { name: "Oatmeal Melange", hex: "#D6CFC7", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
+      { name: "Dusty Blue", hex: "#7E90A3", image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" }
     ],
     sizes: ["S", "M", "L", "XL", "XXL"],
     isAvailable: true,
@@ -567,13 +567,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Acid Wash",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+      "/assets/images/sample_oversized_back_1794643591280.jpg",
       "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg",
+    backImage: "/assets/images/sample_oversized_back_1794643591280.jpg",
     colors: [
-      { name: "Acid Black", hex: "#2B2B2B", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" },
-      { name: "Washed Charcoal", hex: "#4A4A4A", image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" }
+      { name: "Acid Black", hex: "#2B2B2B", image: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" },
+      { name: "Washed Charcoal", hex: "#4A4A4A", image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" }
     ],
     sizes: ["M", "L", "XL", "XXL"],
     isAvailable: true,
@@ -597,13 +597,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: "Oversized Plain",
     images: [
       "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop",
-      "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+      "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
       "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop"
     ],
-    backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+    backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
     colors: [
-      { name: "Chalk White", hex: "#FAFAFA", image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
-      { name: "Deep Navy", hex: "#0B192C", image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop", backImage: "/src/assets/images/sample_oversized_back_1794643591280.jpg" }
+      { name: "Chalk White", hex: "#FAFAFA", image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg" },
+      { name: "Deep Navy", hex: "#0B192C", image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop", backImage: "/assets/images/sample_oversized_back_1794643591280.jpg" }
     ],
     sizes: ["S", "M", "L", "XL"],
     isAvailable: true,
