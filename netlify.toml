@@ -1,3 +1,9 @@
 [build]
   command = "npm run build"
   publish = "dist"
+
+# Legacy image paths (saved before images moved to public/) -> current location
+[[redirects]]
+  from = "/src/assets/images/*"
+  to = "/assets/images/:splat"
+  status = 301

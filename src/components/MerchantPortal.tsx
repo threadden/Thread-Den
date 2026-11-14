@@ -2941,7 +2941,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                       type="text"
                       value={formArtImage}
                       onChange={(e) => setFormArtImage(e.target.value)}
-                      placeholder="https://... or /src/assets/images/..."
+                      placeholder="https://... or /assets/images/..."
                       className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-amber-400"
                     />
                   </div>
@@ -2957,7 +2957,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                       type="text"
                       value={formArtBackImage}
                       onChange={(e) => setFormArtBackImage(e.target.value)}
-                      placeholder="https://... or /src/assets/images/... (back graphic print photo)"
+                      placeholder="https://... or /assets/images/... (back graphic print photo)"
                       className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-emerald-400"
                     />
                   </div>

@@ -20,12 +20,12 @@ import { motion, AnimatePresence } from "motion/react";
 import { Product, CustomerMiniature, StylistFitVerdict } from "../types";
 import { getProductColorImage, getProductBackImage } from "../data";
 
-const chibiMaleImg = "/src/assets/images/chibi_mini_male_1794196203534.jpg";
-const chibiFemImg = "/src/assets/images/chibi_mini_fem_1794196204634.jpg";
-const chibiUrbanImg = "/src/assets/images/chibi_mini_urban_1794196205330.jpg";
-const chibiSareeImg = "/src/assets/images/chibi_mini_saree_1794637741280.jpg";
-const chibiChudidharImg = "/src/assets/images/chibi_mini_chudidhar_1794637742242.jpg";
-const chibiWomenWesternImg = "/src/assets/images/chibi_mini_women_western_1794637743041.jpg";
+const chibiMaleImg = "/assets/images/chibi_mini_male_1794196203534.jpg";
+const chibiFemImg = "/assets/images/chibi_mini_fem_1794196204634.jpg";
+const chibiUrbanImg = "/assets/images/chibi_mini_urban_1794196205330.jpg";
+const chibiSareeImg = "/assets/images/chibi_mini_saree_1794637741280.jpg";
+const chibiChudidharImg = "/assets/images/chibi_mini_chudidhar_1794637742242.jpg";
+const chibiWomenWesternImg = "/assets/images/chibi_mini_women_western_1794637743041.jpg";
 const CHIBI_REFERENCE_IMG = "/assets/aistudio/image_aa6d36c7.png";
 
 type AttireType = "western_tee" | "western_shirt" | "saree" | "chudidhar";

@@ -742,11 +742,11 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
       // Fallback to category-appropriate preset collectible figurine so user is never blocked
       miniatureImageUrl =
         outfitAttire === "saree"
-          ? "/src/assets/images/chibi_mini_saree_1794637741280.jpg"
+          ? "/assets/images/chibi_mini_saree_1794637741280.jpg"
           : outfitAttire === "chudidhar"
-          ? "/src/assets/images/chibi_mini_chudidhar_1794637742242.jpg"
+          ? "/assets/images/chibi_mini_chudidhar_1794637742242.jpg"
           : outfitAttire === "western_shirt"
-          ? "/src/assets/images/chibi_mini_women_western_1794637743041.jpg"
+          ? "/assets/images/chibi_mini_women_western_1794637743041.jpg"
           : "/assets/aistudio/image_aa6d36c7.png";
     }
 
