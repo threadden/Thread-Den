@@ -131,6 +131,12 @@ async function loadImage(source: string | undefined, rootDir: string): Promise<I
         return { mimeType: mimeFromExt(resolved), data: fs.readFileSync(resolved).toString("base64") };
       }
     }
+    // Fallback for hosted deployments where static assets are served by the CDN
+    // rather than bundled with the server: fetch the asset from the site's own URL.
+    const siteUrl = (process.env.URL || process.env.APP_URL || "").replace(/\/+$/, "");
+    if (siteUrl && /^https?:\/\//i.test(siteUrl)) {
+      return loadImage(`${siteUrl}/${clean.split(path.sep).join("/")}`, rootDir);
+    }
     return null;
   }
 
@@ -585,6 +591,21 @@ export function registerStylistRoutes(app: Express, getClient: GetClient, rootDi
       console.warn("[stylist] Reference doll image not found at", p);
     }
   }
+  // If the reference dolls weren't available on disk, load them lazily from the site URL.
+  let referenceDollsPromise: Promise<void> | null = null;
+  const ensureReferenceDolls = () => {
+    if (referenceDolls.length > 0) return Promise.resolve();
+    if (!referenceDollsPromise) {
+      referenceDollsPromise = (async () => {
+        for (const file of ["image_aa6d36c7.png", "reference_doll_2.png"]) {
+          const img = await loadImage(`/assets/aistudio/${file}`, rootDir);
+          if (img) referenceDolls.push(img);
+        }
+        if (referenceDolls.length === 0) referenceDollsPromise = null;
+      })();
+    }
+    return referenceDollsPromise;
+  };
 
   /**
    * ENDPOINT 1: POST /api/stylist/create-miniature
@@ -652,6 +673,7 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
       if (!isCustomerPhoto) return { dataUrl: photoData, model: "preset", generated: false as const };
       const photo = parseDataUrl(photoData)!;
       const started = Date.now();
+      await ensureReferenceDolls();
       const [mainRef, secondRef] = referenceDolls;
       const fluxImages = mainRef ? [mainRef, photo, ...(secondRef ? [secondRef] : [])] : [photo];
       const attempts: any[] = [];
