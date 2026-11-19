@@ -877,24 +877,36 @@ export async function dispatchOrderNotificationsToUser(params: {
   currencySymbol?: string;
   brandName?: string;
   baseUrl?: string;
+  clientPdfBase64?: string;
+  clientPdfFilename?: string;
 }): Promise<OrderDispatchResponse & { generatedBillText: string }> {
   const {
     order,
     currencySymbol = "₹",
     brandName = "THREAD DEN",
     baseUrl = getPublicBaseUrl(),
+    clientPdfBase64,
+    clientPdfFilename,
   } = params;
 
   const now = new Date().toISOString();
   const billNo = order.billNumber || `BILL-${order.id}`;
   const isCod = order.paymentChannel === "cod" || order.paymentStatus === "unpaid";
 
-  // 1. Generate and store real PDF invoice
+  const cleanBase64 =
+    typeof clientPdfBase64 === "string" && clientPdfBase64.trim()
+      ? clientPdfBase64.trim().replace(/^data:application\/pdf[^,]*,/, "")
+      : "";
+  const clientBuffer = cleanBase64 ? Buffer.from(cleanBase64, "base64") : undefined;
+
+  // 1. Store jsPDF invoice buffer (when supplied by client generateOrderPDF) or generate via PDFKit
   const generatedPdf = await generateAndStorePdfBill({
     order: { ...order, billNumber: billNo },
     currencySymbol,
     brandName,
     baseUrl,
+    overrideBuffer: clientBuffer,
+    overrideFilename: clientPdfFilename,
   });
 
   const customerDigits = normalizePhoneDigits(order.customerPhone);
@@ -1083,10 +1095,14 @@ export function registerNotificationRoutes(app: express.Application) {
         order,
         currencySymbol = "₹",
         brandName = "THREAD DEN",
+        clientPdfBase64,
+        clientPdfFilename,
       } = req.body as {
         order?: DispatchOrderPayload;
         currencySymbol?: string;
         brandName?: string;
+        clientPdfBase64?: string;
+        clientPdfFilename?: string;
       };
 
       if (!order || !order.id || !order.customerName) {
@@ -1098,6 +1114,8 @@ export function registerNotificationRoutes(app: express.Application) {
         currencySymbol,
         brandName,
         baseUrl: getPublicBaseUrl(req),
+        clientPdfBase64,
+        clientPdfFilename,
       });
 
       return res.json(response);
@@ -1118,10 +1136,14 @@ export function registerNotificationRoutes(app: express.Application) {
         order,
         currencySymbol = "₹",
         brandName = "THREAD DEN",
+        clientPdfBase64,
+        clientPdfFilename,
       } = req.body as {
         order?: DispatchOrderPayload;
         currencySymbol?: string;
         brandName?: string;
+        clientPdfBase64?: string;
+        clientPdfFilename?: string;
       };
 
       if (!order || !order.id) {
@@ -1131,11 +1153,19 @@ export function registerNotificationRoutes(app: express.Application) {
       const now = new Date().toISOString();
       const billNo = order.billNumber || `BILL-${order.id}`;
       const baseUrl = getPublicBaseUrl(req);
+      const cleanBase64 =
+        typeof clientPdfBase64 === "string" && clientPdfBase64.trim()
+          ? clientPdfBase64.trim().replace(/^data:application\/pdf[^,]*,/, "")
+          : "";
+      const clientBuffer = cleanBase64 ? Buffer.from(cleanBase64, "base64") : undefined;
+
       const generatedPdf = await generateAndStorePdfBill({
         order: { ...order, billNumber: billNo },
         currencySymbol,
         brandName,
         baseUrl,
+        overrideBuffer: clientBuffer,
+        overrideFilename: clientPdfFilename,
       });
 
       const billText = buildPlainTextBill(

@@ -2,9 +2,10 @@ import React, { useState, useMemo } from "react";
 import { 
   Search, Filter, Calendar, User, Phone, MapPin, 
   ShoppingBag, ChevronDown, ChevronUp, ExternalLink, 
-  CheckCircle, Clock, XCircle, AlertCircle, RefreshCw
+  CheckCircle, Clock, XCircle, AlertCircle, RefreshCw, Download
 } from "lucide-react";
 import { Order } from "../types";
+import { downloadOrderPDF } from "../utils/generateOrderPDF";
 
 interface OrderHistoryProps {
   orders: Order[];
@@ -442,8 +443,16 @@ export default function OrderHistory({ orders, currencySymbol, theme }: OrderHis
                                     </div>
                                   </div>
 
-                                  {/* Quick Contact Reseller Helper */}
+                                  {/* Quick Contact & Invoice Download */}
                                   <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => downloadOrderPDF(order, { currencySymbol })}
+                                      className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-display font-semibold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer"
+                                    >
+                                      <Download className="w-3.5 h-3.5" />
+                                      PDF Invoice
+                                    </button>
                                     <a
                                       href={`https://wa.me/${order.customerPhone.replace(/[^0-9]/g, "")}`}
                                       target="_blank"

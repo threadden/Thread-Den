@@ -210,6 +210,8 @@ export default function Hero({
                     <img
                       src={slideImage}
                       alt={currentArticle.name}
+                      fetchPriority="high"
+                      decoding="async"
                       className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
                     />
                   </motion.div>

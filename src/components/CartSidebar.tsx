@@ -38,6 +38,10 @@ import {
   NotificationChannelStatus,
   UserProfile,
 } from "../types";
+import {
+  generateOrderPDF,
+  GeneratedOrderPdfResult,
+} from "../utils/generateOrderPDF";
 
 declare global {
   interface Window {
@@ -223,6 +227,7 @@ export default function CartSidebar({
 
   // Dispatch Notifications & Sample Bill State
   const [dispatchStatus, setDispatchStatus] = useState<OrderDispatchStatus | null>(null);
+  const [generatedOrderPdf, setGeneratedOrderPdf] = useState<GeneratedOrderPdfResult | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
   const [isResendingBill, setIsResendingBill] = useState(false);
 
@@ -335,10 +340,22 @@ export default function CartSidebar({
     setIsAtPaymentPortal(true);
   };
 
-  // Send confirmation & generated PDF Invoice to user email / registered WhatsApp mobile / SMS
-  const dispatchOrderNotifications = async (completedOrder: Order) => {
+  // Generate PDF via jsPDF & send confirmation to user email / registered WhatsApp mobile / SMS
+  const dispatchOrderNotifications = async (
+    completedOrder: Order,
+    preGeneratedPdf?: GeneratedOrderPdfResult
+  ) => {
     setIsDispatching(true);
     try {
+      let pdfArtifact = preGeneratedPdf || generatedOrderPdf;
+      if (!pdfArtifact || pdfArtifact.orderId !== completedOrder.id) {
+        pdfArtifact = generateOrderPDF(completedOrder, {
+          brandName,
+          currencySymbol,
+        });
+        setGeneratedOrderPdf(pdfArtifact);
+      }
+
       const resp = await fetch("/api/notifications/order-dispatch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -346,6 +363,8 @@ export default function CartSidebar({
           order: completedOrder,
           currencySymbol,
           brandName,
+          clientPdfBase64: pdfArtifact.base64,
+          clientPdfFilename: pdfArtifact.filename,
         }),
       });
       if (resp.ok) {
@@ -356,7 +375,7 @@ export default function CartSidebar({
             ? {
                 ...prev,
                 pdfUrl: result.pdfUrl || prev.pdfUrl,
-                pdfFilename: result.pdfFilename || prev.pdfFilename,
+                pdfFilename: result.pdfFilename || pdfArtifact?.filename || prev.pdfFilename,
                 dispatchStatus: result,
               }
             : prev
@@ -376,6 +395,15 @@ export default function CartSidebar({
     if (!createdOrder) return;
     setIsResendingBill(true);
     try {
+      let pdfArtifact = generatedOrderPdf;
+      if (!pdfArtifact || pdfArtifact.orderId !== createdOrder.id) {
+        pdfArtifact = generateOrderPDF(createdOrder, {
+          brandName,
+          currencySymbol,
+        });
+        setGeneratedOrderPdf(pdfArtifact);
+      }
+
       const resp = await fetch("/api/notifications/send-bill", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -383,6 +411,8 @@ export default function CartSidebar({
           order: createdOrder,
           currencySymbol,
           brandName,
+          clientPdfBase64: pdfArtifact.base64,
+          clientPdfFilename: pdfArtifact.filename,
         }),
       });
       if (resp.ok) {
@@ -497,6 +527,15 @@ export default function CartSidebar({
       dispatchStatus: params.preDispatchedStatus,
     };
 
+    // Generate professional invoice PDF via jsPDF immediately on order submission
+    // so the payload is ready for download & WhatsApp/Email dispatch
+    const generatedPdf = generateOrderPDF(completedOrder, {
+      brandName,
+      currencySymbol,
+    });
+    completedOrder.pdfFilename = completedOrder.pdfFilename || generatedPdf.filename;
+    setGeneratedOrderPdf(generatedPdf);
+
     onSubmitOrder(completedOrder);
     setCreatedOrder(completedOrder);
     setPendingGatewayOrder(null);
@@ -510,7 +549,7 @@ export default function CartSidebar({
         onUpdateOrderDispatch(completedOrder.id, params.preDispatchedStatus);
       }
     } else {
-      dispatchOrderNotifications(completedOrder);
+      dispatchOrderNotifications(completedOrder, generatedPdf);
     }
   };
 
@@ -1047,38 +1086,48 @@ export default function CartSidebar({
     }
   };
 
-  // Download actual server-generated PDF Invoice (.pdf)
+  // Download professional PDF Invoice generated via jsPDF (with server fallback)
   const handleDownloadReceipt = async () => {
     if (!createdOrder) return;
     setIsDownloading(true);
-    const billNo = createdOrder.billNumber || `BILL-${createdOrder.id}`;
-    const targetFilename = `${brandName.replace(/[^a-zA-Z0-9]+/g, "_")}_Invoice_${billNo}.pdf`;
-
     try {
-      const resp = await fetch("/api/bills/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: createdOrder,
-          currencySymbol,
+      let pdfArtifact = generatedOrderPdf;
+      if (!pdfArtifact || pdfArtifact.orderId !== createdOrder.id) {
+        pdfArtifact = generateOrderPDF(createdOrder, {
           brandName,
-          download: true,
-        }),
-      });
-      if (!resp.ok) {
-        throw new Error("Failed to generate PDF bill.");
+          currencySymbol,
+        });
+        setGeneratedOrderPdf(pdfArtifact);
       }
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const element = document.createElement("a");
-      element.href = url;
-      element.download = targetFilename;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    } catch (err) {
-      console.error("PDF download failed:", err);
+      pdfArtifact.download();
+    } catch (clientPdfErr) {
+      console.warn("jsPDF download fallback triggered:", clientPdfErr);
+      try {
+        const billNo = createdOrder.billNumber || `BILL-${createdOrder.id}`;
+        const targetFilename = `${brandName.replace(/[^a-zA-Z0-9]+/g, "_")}_Invoice_${billNo}.pdf`;
+        const resp = await fetch("/api/bills/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order: createdOrder,
+            currencySymbol,
+            brandName,
+            download: true,
+          }),
+        });
+        if (!resp.ok) throw new Error("Failed to generate PDF bill.");
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const element = document.createElement("a");
+        element.href = url;
+        element.download = targetFilename;
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } catch (err) {
+        console.error("PDF download failed:", err);
+      }
     } finally {
       setIsDownloading(false);
     }
@@ -1160,6 +1209,7 @@ export default function CartSidebar({
   const handleResetAndClose = () => {
     setCreatedOrder(null);
     setDispatchStatus(null);
+    setGeneratedOrderPdf(null);
     setIsDispatching(false);
     setIsAtPaymentPortal(false);
     setCheckoutError(null);

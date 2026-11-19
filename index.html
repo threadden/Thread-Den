@@ -4,15 +4,64 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>THREAD DEN — Streetwear &amp; Apparel Storefront</title>
+    <meta
+      name="description"
+      content="Shop heavy-GSM streetwear, sarees &amp; polos at THREAD DEN. Try outfits via AI Miniature Stylist &amp; pay via COD or Razorpay with instant PDF bills."
+    />
+    <link rel="canonical" href="https://thread-den.netlify.app/" />
     <link rel="icon" type="image/png" href="/assets/aistudio/Logo_white_35762b07.png" />
-    <meta name="description" content="THREAD DEN streetwear and apparel storefront with AI Miniature Virtual Try-On, interactive order builder, COD, Razorpay UPI & Card payments, and instant invoice billing." />
+
+    <!-- OpenGraph & Twitter Social Metadata -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="THREAD DEN" />
+    <meta property="og:url" content="https://thread-den.netlify.app/" />
     <meta property="og:title" content="THREAD DEN — Streetwear &amp; Apparel Storefront" />
-    <meta property="og:description" content="THREAD DEN streetwear and apparel storefront with AI Miniature Virtual Try-On, interactive order builder, COD, Razorpay UPI & Card payments, and instant invoice billing." />
-    <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
+    <meta
+      property="og:description"
+      content="Shop heavy-GSM streetwear, sarees &amp; polos at THREAD DEN. Try outfits via AI Miniature Stylist &amp; pay via COD or Razorpay with instant PDF bills."
+    />
+    <meta property="og:image" content="https://thread-den.netlify.app/assets/aistudio/Logo_white_35762b07.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="THREAD DEN — Streetwear &amp; Apparel Storefront" />
+    <meta
+      name="twitter:description"
+      content="Shop heavy-GSM streetwear, sarees &amp; polos at THREAD DEN. Try outfits via AI Miniature Stylist &amp; pay via COD or Razorpay with instant PDF bills."
+    />
+
+    <!-- Performance: Preconnect & Preload for Faster First Contentful Paint -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
+    <link rel="preload" as="image" href="/assets/aistudio/logo_monogram_white.png" fetchpriority="high" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      media="print"
+      onload="this.media='all'"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      />
+    </noscript>
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "ClothingStore",
+        "name": "THREAD DEN",
+        "url": "https://thread-den.netlify.app/",
+        "description": "Shop heavy-GSM streetwear, sarees & polos at THREAD DEN. Try outfits via AI Miniature Stylist & pay via COD or Razorpay with instant PDF bills.",
+        "priceRange": "₹₹"
+      }
+    </script>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   </head>
-  <body>
+  <body style="background-color:#09090b;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

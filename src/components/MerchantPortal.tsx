@@ -26,6 +26,7 @@ import { Product, Order, OrderDispatchStatus, ResellerCalculator, BrandPartner, 
 import { CATEGORIES, getProductColorImage, getProductBackImage } from "../data";
 import { normalizePhone } from "../firebase";
 import OrderHistory from "./OrderHistory";
+import { generateOrderPDF } from "../utils/generateOrderPDF";
 
 interface MerchantPortalProps {
   products: Product[];
@@ -110,6 +111,7 @@ export default function MerchantPortal({
   const handleMerchantDispatchOrder = async (order: Order) => {
     setDispatchingOrderId(order.id);
     try {
+      const pdfArtifact = generateOrderPDF(order, { currencySymbol, brandName });
       const resp = await fetch("/api/notifications/order-dispatch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,6 +119,8 @@ export default function MerchantPortal({
           order,
           currencySymbol,
           brandName,
+          clientPdfBase64: pdfArtifact.base64,
+          clientPdfFilename: pdfArtifact.filename,
         }),
       });
       if (resp.ok) {

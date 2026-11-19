@@ -484,6 +484,8 @@ export async function generateAndStorePdfBill(params: {
   currencySymbol?: string;
   brandName?: string;
   baseUrl?: string;
+  overrideBuffer?: Buffer;
+  overrideFilename?: string;
 }): Promise<{
   billNumber: string;
   filename: string;
@@ -492,11 +494,26 @@ export async function generateAndStorePdfBill(params: {
   pdfPath: string;
   pdfUrl: string;
 }> {
-  const { order, currencySymbol = "₹", brandName = "THREAD DEN", baseUrl = "" } = params;
+  const {
+    order,
+    currencySymbol = "₹",
+    brandName = "THREAD DEN",
+    baseUrl = "",
+    overrideBuffer,
+    overrideFilename,
+  } = params;
   const billNumber = (order.billNumber || `BILL-${order.id}`).replace(/[^a-zA-Z0-9._-]/g, "");
   const cleanBrand = brandName.replace(/[^a-zA-Z0-9]+/g, "_");
-  const filename = `${cleanBrand}_Invoice_${billNumber}.pdf`;
-  const buffer = await generateInvoicePdfBuffer(order, currencySymbol, brandName);
+  const filename = overrideFilename
+    ? overrideFilename.replace(/[^a-zA-Z0-9._-]/g, "")
+    : `${cleanBrand}_Invoice_${billNumber}.pdf`;
+  const hasValidClientPdf =
+    Boolean(overrideBuffer) &&
+    overrideBuffer!.length > 64 &&
+    overrideBuffer!.subarray(0, 5).toString("utf8") === "%PDF-";
+  const buffer = hasValidClientPdf
+    ? overrideBuffer!
+    : await generateInvoicePdfBuffer(order, currencySymbol, brandName);
   const token = createBillAccessToken(billNumber);
   const filePath = path.join(BILLS_DIR, `${billNumber}.pdf`);
 

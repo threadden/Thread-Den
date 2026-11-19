@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { 
   Filter, Sparkles, AlertCircle, ShoppingBag, ArrowRight, Settings, 
   HelpCircle, ChevronLeft, ChevronRight, Sliders, Smartphone, SlidersHorizontal, X, RotateCcw,
@@ -7,22 +7,22 @@ import {
 import { Product, CartItem, Order, ResellerCalculator, UserProfile, BrandPartner, CustomerReview } from "./types";
 import { DEFAULT_PRODUCTS, CATEGORIES, DEFAULT_CALCULATOR, DEFAULT_ORDERS, DEFAULT_BRAND_PARTNERS } from "./data";
 
-// Component imports
+// Component imports (above-the-fold eager, heavy modals/back-office code-split for fast FCP)
 import Header from "./components/Header";
 import Hero from "./components/Hero";
 import ProductCard from "./components/ProductCard";
-import ProductDetailModal from "./components/ProductDetailModal";
-import CartSidebar from "./components/CartSidebar";
-import MerchantPortal from "./components/MerchantPortal";
 import Testimonials from "./components/Testimonials";
 import PushNotificationCenter, { PushNotification } from "./components/PushNotificationCenter";
-import AccountModal from "./components/AccountModal";
-import PriceRangeFilter from "./components/PriceRangeFilter";
-import FilterModal from "./components/FilterModal";
-import AuthModal from "./components/AuthModal";
-import AiStylistModal from "./components/AiStylistModal";
 import Footer from "./components/Footer";
 import IntroSplash from "./components/IntroSplash";
+
+const ProductDetailModal = lazy(() => import("./components/ProductDetailModal"));
+const CartSidebar = lazy(() => import("./components/CartSidebar"));
+const MerchantPortal = lazy(() => import("./components/MerchantPortal"));
+const AccountModal = lazy(() => import("./components/AccountModal"));
+const FilterModal = lazy(() => import("./components/FilterModal"));
+const AuthModal = lazy(() => import("./components/AuthModal"));
+const AiStylistModal = lazy(() => import("./components/AiStylistModal"));
 import {
   testFirestoreConnection,
   seedProductsIfEmpty,
@@ -1236,7 +1236,8 @@ export default function App() {
         ) : isAdminAuthenticated ? (
           /* ================= MERCHANT HUB VIEWPORT (ADMIN ONLY) ================= */
           <div className="animate-in fade-in duration-300">
-            <MerchantPortal
+            <Suspense fallback={null}>
+              <MerchantPortal
                 products={products}
                 orders={orders}
                 calculator={calculator}
@@ -1256,6 +1257,7 @@ export default function App() {
                 onDeleteReview={deleteReviewDoc}
                 theme={theme}
               />
+            </Suspense>
           </div>
         ) : null}
       </main>
@@ -1276,125 +1278,145 @@ export default function App() {
       />
 
       {/* SINGLE UNIFIED LOGIN / SIGN UP MODAL (CUSTOMER DEFAULT + ADMIN TOGGLE) */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => {
-          setIsAuthModalOpen(false);
-          setAuthModalCheckoutContext(null);
-        }}
-        onCustomerLogin={handleCustomerLogin}
-        onAdminLogin={handleAdminSuccess}
-        theme={theme}
-        brandName={brandName}
-        initialRole="customer"
-        initialCustomerMode={authModalInitialMode}
-        checkoutContext={authModalCheckoutContext}
-      />
+      {isAuthModalOpen && (
+        <Suspense fallback={null}>
+          <AuthModal
+            isOpen={isAuthModalOpen}
+            onClose={() => {
+              setIsAuthModalOpen(false);
+              setAuthModalCheckoutContext(null);
+            }}
+            onCustomerLogin={handleCustomerLogin}
+            onAdminLogin={handleAdminSuccess}
+            theme={theme}
+            brandName={brandName}
+            initialRole="customer"
+            initialCustomerMode={authModalInitialMode}
+            checkoutContext={authModalCheckoutContext}
+          />
+        </Suspense>
+      )}
 
-      <ProductDetailModal
-        product={selectedProduct}
-        currencySymbol={currencySymbol}
-        onClose={() => setSelectedProduct(null)}
-        onAddToCart={handleAddToCart}
-        onBuyNow={(product, size, color, quantity) => {
-          handleAddToCart(product, size, color, quantity);
-          setIsCartOpen(true);
-        }}
-        onVisualizeWithAiStylist={(product, color, view) => handleOpenStylist(product, color, view)}
-        theme={theme}
-        isPriceAlertSubscribed={selectedProduct ? priceAlertProductIds.includes(selectedProduct.id) : false}
-        onTogglePriceAlert={handleTogglePriceAlert}
-        onSimulatePriceDrop={handleSimulatePriceDrop}
-      />
+      {selectedProduct && (
+        <Suspense fallback={null}>
+          <ProductDetailModal
+            product={selectedProduct}
+            currencySymbol={currencySymbol}
+            onClose={() => setSelectedProduct(null)}
+            onAddToCart={handleAddToCart}
+            onBuyNow={(product, size, color, quantity) => {
+              handleAddToCart(product, size, color, quantity);
+              setIsCartOpen(true);
+            }}
+            onVisualizeWithAiStylist={(product, color, view) => handleOpenStylist(product, color, view)}
+            theme={theme}
+            isPriceAlertSubscribed={selectedProduct ? priceAlertProductIds.includes(selectedProduct.id) : false}
+            onTogglePriceAlert={handleTogglePriceAlert}
+            onSimulatePriceDrop={handleSimulatePriceDrop}
+          />
+        </Suspense>
+      )}
 
-      <CartSidebar
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        cart={cart}
-        onUpdateQuantity={handleUpdateCartQuantity}
-        onRemoveItem={handleRemoveCartItem}
-        currencySymbol={currencySymbol}
-        brandName={brandName}
-        merchantWhatsApp={merchantWhatsApp}
-        onSubmitOrder={handleOrderSubmitted}
-        onUpdateOrderDispatch={handleUpdateOrderDispatch}
-        onRecordCustomerDetails={handleRecordCustomerDetails}
-        theme={theme}
-        currentUser={currentUser}
-        onOpenAccountModal={() => {
-          if (currentUser) {
-            setIsAccountOpen(true);
-          } else {
-            setAuthModalInitialMode("signin");
-            setAuthModalCheckoutContext(null);
-            setIsAuthModalOpen(true);
-          }
-        }}
-        onOpenAuthModal={(mode) => {
-          const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-          setAuthModalInitialMode(mode);
-          setAuthModalCheckoutContext({
-            itemCount: cartTotalCount,
-            totalAmount: subtotal,
-            currencySymbol: currencySymbol,
-          });
-          setIsAuthModalOpen(true);
-        }}
-      />
+      {isCartOpen && (
+        <Suspense fallback={null}>
+          <CartSidebar
+            isOpen={isCartOpen}
+            onClose={() => setIsCartOpen(false)}
+            cart={cart}
+            onUpdateQuantity={handleUpdateCartQuantity}
+            onRemoveItem={handleRemoveCartItem}
+            currencySymbol={currencySymbol}
+            brandName={brandName}
+            merchantWhatsApp={merchantWhatsApp}
+            onSubmitOrder={handleOrderSubmitted}
+            onUpdateOrderDispatch={handleUpdateOrderDispatch}
+            onRecordCustomerDetails={handleRecordCustomerDetails}
+            theme={theme}
+            currentUser={currentUser}
+            onOpenAccountModal={() => {
+              if (currentUser) {
+                setIsAccountOpen(true);
+              } else {
+                setAuthModalInitialMode("signin");
+                setAuthModalCheckoutContext(null);
+                setIsAuthModalOpen(true);
+              }
+            }}
+            onOpenAuthModal={(mode) => {
+              const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+              setAuthModalInitialMode(mode);
+              setAuthModalCheckoutContext({
+                itemCount: cartTotalCount,
+                totalAmount: subtotal,
+                currencySymbol: currencySymbol,
+              });
+              setIsAuthModalOpen(true);
+            }}
+          />
+        </Suspense>
+      )}
 
-      <FilterModal
-        isOpen={isFilterModalOpen}
-        onClose={() => setIsFilterModalOpen(false)}
-        categories={CATEGORIES}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        minPrice={minPriceFilter}
-        maxPrice={maxPriceFilter}
-        catalogMinPrice={catalogMinPrice}
-        catalogMaxPrice={catalogMaxPrice}
-        onChangeMinPrice={setMinPriceFilter}
-        onChangeMaxPrice={setMaxPriceFilter}
-        onResetFilters={() => {
-          setSelectedCategory("All");
-          setMinPriceFilter(catalogMinPrice);
-          setMaxPriceFilter(catalogMaxPrice);
-        }}
-        currencySymbol={currencySymbol}
-        theme={theme}
-        productCount={filteredProducts.length}
-        totalProductCount={products.length}
-      />
+      {isFilterModalOpen && (
+        <Suspense fallback={null}>
+          <FilterModal
+            isOpen={isFilterModalOpen}
+            onClose={() => setIsFilterModalOpen(false)}
+            categories={CATEGORIES}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            minPrice={minPriceFilter}
+            maxPrice={maxPriceFilter}
+            catalogMinPrice={catalogMinPrice}
+            catalogMaxPrice={catalogMaxPrice}
+            onChangeMinPrice={setMinPriceFilter}
+            onChangeMaxPrice={setMaxPriceFilter}
+            onResetFilters={() => {
+              setSelectedCategory("All");
+              setMinPriceFilter(catalogMinPrice);
+              setMaxPriceFilter(catalogMaxPrice);
+            }}
+            currencySymbol={currencySymbol}
+            theme={theme}
+            productCount={filteredProducts.length}
+            totalProductCount={products.length}
+          />
+        </Suspense>
+      )}
 
-      <AccountModal
-        isOpen={isAccountOpen}
-        onClose={() => setIsAccountOpen(false)}
-        currentUser={currentUser}
-        onLogin={(user) => handleCustomerLogin(user)}
-        onLogout={() => {
-          setCurrentUser(null);
-          setNotifications((prev) => [
-            {
-              id: `notif_${Date.now()}`,
-              title: "👋 Signed Out",
-              body: "You have signed out of your customer account.",
-              timestamp: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-            },
-            ...prev,
-          ]);
-        }}
-        onUpdateUser={handleUpdateUser}
-        userOrders={orders}
-        currencySymbol={currencySymbol}
-        merchantWhatsApp={merchantWhatsApp}
-        theme={theme}
-        wishlistProductIds={wishlistProductIds}
-        allProducts={products}
-        onToggleWishlist={handleToggleWishlist}
-        onSelectProduct={(product) => setSelectedProduct(product)}
-        onCancelOrder={handleCancelOrder}
-        onAdminLogin={() => setIsAuthModalOpen(true)}
-        brandName={brandName}
-      />
+      {isAccountOpen && (
+        <Suspense fallback={null}>
+          <AccountModal
+            isOpen={isAccountOpen}
+            onClose={() => setIsAccountOpen(false)}
+            currentUser={currentUser}
+            onLogin={(user) => handleCustomerLogin(user)}
+            onLogout={() => {
+              setCurrentUser(null);
+              setNotifications((prev) => [
+                {
+                  id: `notif_${Date.now()}`,
+                  title: "👋 Signed Out",
+                  body: "You have signed out of your customer account.",
+                  timestamp: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+                },
+                ...prev,
+              ]);
+            }}
+            onUpdateUser={handleUpdateUser}
+            userOrders={orders}
+            currencySymbol={currencySymbol}
+            merchantWhatsApp={merchantWhatsApp}
+            theme={theme}
+            wishlistProductIds={wishlistProductIds}
+            allProducts={products}
+            onToggleWishlist={handleToggleWishlist}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            onCancelOrder={handleCancelOrder}
+            onAdminLogin={() => setIsAuthModalOpen(true)}
+            brandName={brandName}
+          />
+        </Suspense>
+      )}
 
       {/* Push Notification Simulator */}
       <PushNotificationCenter
@@ -1409,19 +1431,23 @@ export default function App() {
       />
 
       {/* AI Stylist & Miniature Virtual Try-On Studio */}
-      <AiStylistModal
-        isOpen={isStylistOpen}
-        onClose={() => setIsStylistOpen(false)}
-        products={products}
-        selectedProduct={stylistTargetProduct}
-        onSelectProduct={(p) => setStylistTargetProduct(p)}
-        onAddToCart={handleAddToCart}
-        theme={theme}
-        currencySymbol={currencySymbol}
-        brandName={brandName}
-        initialColor={stylistTargetColor}
-        initialView={stylistTargetView}
-      />
+      {isStylistOpen && (
+        <Suspense fallback={null}>
+          <AiStylistModal
+            isOpen={isStylistOpen}
+            onClose={() => setIsStylistOpen(false)}
+            products={products}
+            selectedProduct={stylistTargetProduct}
+            onSelectProduct={(p) => setStylistTargetProduct(p)}
+            onAddToCart={handleAddToCart}
+            theme={theme}
+            currencySymbol={currencySymbol}
+            brandName={brandName}
+            initialColor={stylistTargetColor}
+            initialView={stylistTargetView}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
