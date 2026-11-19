@@ -28,12 +28,21 @@ app.use((req, res, next) => {
     ? "frame-ancestors 'self' https://aistudio.google.com https://*.google.com;"
     : "frame-ancestors 'self';";
 
+  const isProd = process.env.NODE_ENV === "production";
+  const scriptSrc = isProd
+    ? "script-src 'self' https://checkout.razorpay.com https://apis.google.com https://www.googletagmanager.com;"
+    : "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://apis.google.com https://www.googletagmanager.com;";
+  const styleSrc = isProd
+    ? "style-src 'self' https://fonts.googleapis.com;"
+    : "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;";
+
   res.setHeader(
     "Content-Security-Policy",
     [
       "default-src 'self';",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://apis.google.com https://www.googletagmanager.com;",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;",
+      scriptSrc,
+      "script-src-attr 'none';",
+      styleSrc,
       "font-src 'self' data: https://fonts.gstatic.com;",
       "img-src 'self' data: blob: https:;",
       "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com wss://*.firebaseio.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://api.razorpay.com https://lumberjack.razorpay.com https://checkout.razorpay.com https://fonts.googleapis.com https://fonts.gstatic.com;",
@@ -43,6 +52,7 @@ app.use((req, res, next) => {
       "base-uri 'self';",
       "form-action 'self' https://api.razorpay.com https://razorpay.me;",
       frameAncestors,
+      ...(isProd ? ["upgrade-insecure-requests;"] : []),
     ].join(" ")
   );
   res.setHeader("X-Content-Type-Options", "nosniff");

@@ -988,79 +988,66 @@ export default function CartSidebar({
     const isCod = createdOrder.paymentChannel === "cod" || createdOrder.paymentStatus === "unpaid";
     const billNo = createdOrder.billNumber || `BILL-${createdOrder.id}`;
 
+    const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map((el) => (el as HTMLLinkElement).href)
+      .filter((href) => href.startsWith(window.location.origin))
+      .map((href) => `<link rel="stylesheet" href="${href}" />`)
+      .join("");
+
     const htmlContent = `
       <html>
         <head>
           <title>Sample_Bill_${billNo}</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 36px; color: #18181b; background: #fff; }
-            .receipt-container { max-width: 620px; margin: 0 auto; border: 1px solid #e4e4e7; padding: 30px; border-radius: 16px; }
-            .header { text-align: center; margin-bottom: 22px; border-bottom: 2px solid #f4f4f5; padding-bottom: 18px; }
-            .title { font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 0; }
-            .subtitle { font-size: 11px; color: #71717a; margin-top: 4px; font-weight: 600; }
-            .badge { display: inline-block; padding: 5px 12px; background: ${isCod ? "#fef3c7" : "#ecfdf5"}; border: 1px solid ${isCod ? "#fcd34d" : "#a7f3d0"}; color: ${isCod ? "#b45309" : "#047857"}; font-size: 10px; font-weight: 700; border-radius: 9999px; text-transform: uppercase; margin-top: 10px; }
-            .meta-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 14px; font-size: 12px; margin-bottom: 20px; padding: 14px; background: #fafafa; border-radius: 12px; }
-            .meta-label { color: #71717a; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-            .meta-val { font-weight: 700; }
-            .section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #27272a; letter-spacing: 1px; border-bottom: 1px solid #e4e4e7; padding-bottom: 6px; margin: 20px 0 10px; }
-            .info-block { font-size: 12px; line-height: 1.65; color: #3f3f46; }
-            .item-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-            .item-table th { text-align: left; color: #71717a; padding: 10px 4px; border-bottom: 1px solid #e4e4e7; font-weight: 700; }
-            .item-table td { padding: 11px 4px; border-bottom: 1px solid #f4f4f5; }
-            .total-block { margin-top: 20px; font-size: 12px; border-top: 1px solid #e4e4e7; padding-top: 14px; }
-            .total-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: #3f3f46; }
-            .grand-total { font-size: 16px; font-weight: 800; color: #18181b; border-top: 2px dashed #e4e4e7; padding-top: 12px; margin-top: 10px; }
-            .footer-note { text-align: center; font-size: 10px; color: #a1a1aa; margin-top: 28px; border-top: 1px solid #f4f4f5; padding-top: 14px; }
-          </style>
+          ${styleLinks}
         </head>
-        <body>
-          <div class="receipt-container">
-            <div class="header">
-              <div class="title">${brandName}</div>
-              <div class="subtitle">Sample Bill &amp; Official Tax Invoice</div>
-              <div class="badge">${isCod ? "Cash on Delivery — Pay at Delivery" : "Paid via Razorpay — Verified"}</div>
+        <body class="td-receipt-body">
+          <div class="td-receipt-container">
+            <div class="td-receipt-header">
+              <div class="td-receipt-title">${brandName}</div>
+              <div class="td-receipt-subtitle">Sample Bill &amp; Official Tax Invoice</div>
+              <div class="td-receipt-badge ${isCod ? "td-receipt-badge--cod" : "td-receipt-badge--paid"}">${isCod ? "Cash on Delivery — Pay at Delivery" : "Paid via Razorpay — Verified"}</div>
             </div>
-            <div class="meta-grid">
-              <div><span class="meta-label">Sample Bill No</span><br/><span class="meta-val">${billNo}</span></div>
-              <div style="text-align:right;"><span class="meta-label">Order ID</span><br/><span class="meta-val">${createdOrder.id}</span></div>
-              <div><span class="meta-label">Bill Date</span><br/><span class="meta-val">${createdOrder.createdAt}</span></div>
-              <div style="text-align:right;"><span class="meta-label">Payment Mode</span><br/><span class="meta-val">${createdOrder.paymentMethod}</span></div>
-              ${createdOrder.razorpayOrderId ? `<div><span class="meta-label">Razorpay Order ID</span><br/><span class="meta-val">${createdOrder.razorpayOrderId}</span></div>` : ""}
-              ${createdOrder.razorpayPaymentId ? `<div style="text-align:right;"><span class="meta-label">Razorpay Payment ID</span><br/><span class="meta-val">${createdOrder.razorpayPaymentId}</span></div>` : ""}
-              ${createdOrder.razorpayMeUrl ? `<div style="grid-column:span 2;"><span class="meta-label">Razorpay Gateway</span><br/><span class="meta-val">${createdOrder.razorpayMeUrl}</span></div>` : ""}
+            <div class="td-receipt-meta-grid">
+              <div><span class="td-receipt-meta-label">Sample Bill No</span><br/><span class="td-receipt-meta-val">${billNo}</span></div>
+              <div class="td-receipt-meta-right"><span class="td-receipt-meta-label">Order ID</span><br/><span class="td-receipt-meta-val">${createdOrder.id}</span></div>
+              <div><span class="td-receipt-meta-label">Bill Date</span><br/><span class="td-receipt-meta-val">${createdOrder.createdAt}</span></div>
+              <div class="td-receipt-meta-right"><span class="td-receipt-meta-label">Payment Mode</span><br/><span class="td-receipt-meta-val">${createdOrder.paymentMethod}</span></div>
+              ${createdOrder.razorpayOrderId ? `<div><span class="td-receipt-meta-label">Razorpay Order ID</span><br/><span class="td-receipt-meta-val">${createdOrder.razorpayOrderId}</span></div>` : ""}
+              ${createdOrder.razorpayPaymentId ? `<div class="td-receipt-meta-right"><span class="td-receipt-meta-label">Razorpay Payment ID</span><br/><span class="td-receipt-meta-val">${createdOrder.razorpayPaymentId}</span></div>` : ""}
+              ${createdOrder.razorpayMeUrl ? `<div class="td-receipt-meta-span"><span class="td-receipt-meta-label">Razorpay Gateway</span><br/><span class="td-receipt-meta-val">${createdOrder.razorpayMeUrl}</span></div>` : ""}
             </div>
-            <div class="section-title">Recorded Customer Details</div>
-            <div class="info-block">
+            <div class="td-receipt-section-title">Recorded Customer Details</div>
+            <div class="td-receipt-info-block">
               <strong>Billed To:</strong> ${createdOrder.customerName}<br/>
               <strong>Email ID:</strong> ${createdOrder.customerEmail || "N/A"}<br/>
               <strong>Phone:</strong> ${createdOrder.customerPhone}<br/>
               <strong>Logistics:</strong> ${createdOrder.deliveryMethod === "delivery" ? "Hand Delivery" : "Studio Pick-up"}<br/>
               ${createdOrder.customerAddress ? `<strong>Address:</strong> ${createdOrder.customerAddress}` : ""}
             </div>
-            <div class="section-title">Itemized Particulars</div>
-            <table class="item-table">
-              <thead><tr><th>Item</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Rate</th><th style="text-align:right;">Total</th></tr></thead>
+            <div class="td-receipt-section-title">Itemized Particulars</div>
+            <table class="td-receipt-table">
+              <thead><tr><th>Item</th><th class="td-receipt-center">Qty</th><th class="td-receipt-right">Rate</th><th class="td-receipt-right">Total</th></tr></thead>
               <tbody>
                 ${createdOrder.items
                   .map(
                     (item) => `
                   <tr>
-                    <td><strong>${item.productName}</strong><br/><span style="font-size:10px;color:#71717a;">Size: ${item.size} | Color: ${item.color}</span></td>
-                    <td style="text-align:center;">${item.quantity}</td>
-                    <td style="text-align:right;">${currencySymbol}${item.price.toLocaleString()}</td>
-                    <td style="text-align:right;font-weight:700;">${currencySymbol}${(item.price * item.quantity).toLocaleString()}</td>
+                    <td><strong>${item.productName}</strong><br/><span class="td-receipt-item-sub">Size: ${item.size} | Color: ${item.color}</span></td>
+                    <td class="td-receipt-center">${item.quantity}</td>
+                    <td class="td-receipt-right">${currencySymbol}${item.price.toLocaleString()}</td>
+                    <td class="td-receipt-right td-receipt-bold">${currencySymbol}${(item.price * item.quantity).toLocaleString()}</td>
                   </tr>`
                   )
                   .join("")}
               </tbody>
             </table>
-            <div class="total-block">
-              <div class="total-row"><span>Subtotal</span><span>${currencySymbol}${(createdOrder.totalAmount - (createdOrder.deliveryMethod === "delivery" ? 100 : 0)).toLocaleString()}</span></div>
-              <div class="total-row"><span>Delivery Charges</span><span>${createdOrder.deliveryMethod === "delivery" ? `${currencySymbol}100` : "Free"}</span></div>
-              <div class="total-row"><span>GST (5% Included)</span><span>${currencySymbol}${Math.round(createdOrder.totalAmount * 0.0476).toLocaleString()}</span></div>
-              <div class="total-row grand-total"><span>${isCod ? "TOTAL PAYABLE (COD)" : "TOTAL AMOUNT PAID"}</span><span>${currencySymbol}${createdOrder.totalAmount.toLocaleString()}</span></div>
+            <div class="td-receipt-total-block">
+              <div class="td-receipt-total-row"><span>Subtotal</span><span>${currencySymbol}${(createdOrder.totalAmount - (createdOrder.deliveryMethod === "delivery" ? 100 : 0)).toLocaleString()}</span></div>
+              <div class="td-receipt-total-row"><span>Delivery Charges</span><span>${createdOrder.deliveryMethod === "delivery" ? `${currencySymbol}100` : "Free"}</span></div>
+              <div class="td-receipt-total-row"><span>GST (5% Included)</span><span>${currencySymbol}${Math.round(createdOrder.totalAmount * 0.0476).toLocaleString()}</span></div>
+              <div class="td-receipt-total-row td-receipt-grand-total"><span>${isCod ? "TOTAL PAYABLE (COD)" : "TOTAL AMOUNT PAID"}</span><span>${currencySymbol}${createdOrder.totalAmount.toLocaleString()}</span></div>
             </div>
-            <div class="footer-note">Thank you for shopping at ${brandName}! Sample bill sent to ${createdOrder.customerEmail || createdOrder.customerPhone}.</div>
+            <div class="td-receipt-footer">Thank you for shopping at ${brandName}! Sample bill sent to ${createdOrder.customerEmail || createdOrder.customerPhone}.</div>
           </div>
         </body>
       </html>`;
