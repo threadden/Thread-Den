@@ -21,7 +21,8 @@ export interface Product {
   description: string;
   basePrice: number; // Wholesale/Import cost from the supplier / brand
   price: number;     // Reselling price to customers
-  category: string;  // e.g., "Oversized Blanks", "Graphic Tees", "Heavyweight Basics"
+  collection?: "men" | "women"; // Separated Men's vs Women's collection
+  category: string;  // e.g., "Oversized Tshirts (Men)", "Sarees (Women)"
   images: string[];
   backImage?: string; // Photo 2 for back prints (Oversized, Drop Shoulder, Polo, etc.)
   colors: { name: string; hex: string; image?: string; imageUrl?: string; backImage?: string }[];
@@ -89,9 +90,10 @@ export interface BankDetails {
 export interface UserProfile {
   id: string;
   name: string;
-  username?: string;
   email: string;
+  normalizedEmail?: string;
   phone: string;
+  normalizedPhone?: string;
   password?: string;
   avatarUrl?: string;
   createdAt: string;

@@ -33,6 +33,8 @@ const TEXT_MODELS = Array.from(
   new Set([process.env.GEMINI_TEXT_MODEL?.trim(), "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"].filter(Boolean) as string[])
 );
 const MAX_REMOTE_IMAGE_BYTES = 8 * 1024 * 1024;
+const MAX_DATA_URL_BYTES = 6 * 1024 * 1024;
+const MAX_DATA_URL_CHARS = Math.ceil((MAX_DATA_URL_BYTES * 4) / 3) + 128;
 
 /** Last run details, accessible at GET /api/stylist/status for real-time debugging */
 const lastRuns: Record<string, any> = {};
@@ -55,7 +57,26 @@ class ImageGenError extends Error {
   }
 }
 
+function truncateErr(msg: string, max = 500): string {
+  return msg.length > max ? `${msg.slice(0, max)}...` : msg;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function parseDataUrl(value: string): InlineImage | null {
+  if (!value || value.length > MAX_DATA_URL_CHARS) return null;
   const m = value.match(/^data:(image\/[A-Za-z0-9.+-]+);base64,(.+)$/s);
   return m ? { mimeType: m[1], data: m[2] } : null;
 }
@@ -94,18 +115,22 @@ async function generateJson(client: GoogleGenAI, parts: any[]): Promise<any> {
   let lastErr: any;
   for (const model of TEXT_MODELS) {
     try {
-      const r = await client.models.generateContent({
-        model,
-        contents: [{ role: "user", parts }],
-        config: { responseMimeType: "application/json" },
-      });
+      const r = await withTimeout(
+        client.models.generateContent({
+          model,
+          contents: [{ role: "user", parts }],
+          config: { responseMimeType: "application/json" },
+        }),
+        60_000,
+        `Gemini text (${model})`
+      );
       if (!r.text) throw new Error("empty response");
       const cleaned = r.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/, "");
       lastRuns.text = { ok: true, model, at: new Date().toISOString() };
       return JSON.parse(cleaned);
     } catch (e: any) {
       lastErr = e;
-      lastRuns.text = { ok: false, model, error: cleanGeminiError(e), at: new Date().toISOString() };
+      lastRuns.text = { ok: false, model, error: truncateErr(cleanGeminiError(e)), at: new Date().toISOString() };
       console.warn(`[stylist] text model ${model} failed:`, cleanGeminiError(e));
     }
   }
@@ -267,14 +292,18 @@ async function generateWithGemini(
   let lastError = "";
   for (const model of imageModels()) {
     try {
-      const response = await client.models.generateContent({
-        model,
-        contents: [{ role: "user", parts }],
-        config: {
-          responseModalities: ["IMAGE", "TEXT"],
-          imageConfig: { aspectRatio },
-        },
-      });
+      const response = await withTimeout(
+        client.models.generateContent({
+          model,
+          contents: [{ role: "user", parts }],
+          config: {
+            responseModalities: ["IMAGE", "TEXT"],
+            imageConfig: { aspectRatio },
+          },
+        }),
+        90_000,
+        `Gemini image (${model})`
+      );
 
       const candidate = response.candidates?.[0];
       const imgPart = candidate?.content?.parts?.find((p: any) => p.inlineData?.data);
@@ -620,6 +649,9 @@ export function registerStylistRoutes(app: Express, getClient: GetClient, rootDi
     if (!photoData || typeof photoData !== "string") {
       return res.status(400).json({ error: "A photo is required to create a miniature." });
     }
+    if (isCustomerPhoto && !parseDataUrl(photoData)) {
+      return res.status(413).json({ error: "Uploaded photo is invalid or exceeds the 6 MB image limit." });
+    }
 
     let features = {
       skinTone: "warm medium",
@@ -732,7 +764,7 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
       imageError = err?.message || "Could not generate the miniature image.";
       imageErrorCode = err instanceof ImageGenError ? err.code : "api_error";
       console.warn("[stylist] miniature generation failed:", imageError);
-      lastRuns.miniature = { ...(lastRuns.miniature || {}), ok: false, error: imageError, at: new Date().toISOString() };
+      lastRuns.miniature = { ...(lastRuns.miniature || {}), ok: false, error: truncateErr(String(imageError)), at: new Date().toISOString() };
 
       if (/billing|free tier|not available for this project/i.test(imageError)) {
         imageError = "Gemini image generation requires a billing-enabled Google AI Studio project. To generate images for free without billing, configure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN in your environment. We have assigned your collectible reference miniature figurine so you can explore outfits and get instant fit verdicts!";
@@ -814,7 +846,7 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
       lastRuns.tryOn = { ok: true, model: out.model, usedProductPhoto: Boolean(garment), at: new Date().toISOString() };
       return res.json({ imageUrl: out.dataUrl, model: out.model, usedProductPhoto: Boolean(garment) });
     } catch (err: any) {
-      lastRuns.tryOn = { ok: false, error: err?.message, usedProductPhoto: Boolean(garment), at: new Date().toISOString() };
+      lastRuns.tryOn = { ok: false, error: truncateErr(String(err?.message || "try-on error")), usedProductPhoto: Boolean(garment), at: new Date().toISOString() };
       const code = err instanceof ImageGenError ? err.code : "api_error";
       let errMsg = err?.message || "Virtual try-on preview could not be generated.";
       if (/billing|free tier|not available for this project/i.test(errMsg)) {

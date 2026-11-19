@@ -66,8 +66,9 @@ export default function AuthModal({
   // Customer sub-mode: "signin" (Customer Login) vs "signup" (Customer Sign Up)
   const [customerMode, setCustomerMode] = useState<"signin" | "signup">("signin");
 
-  // Customer Sign In state
-  const [customerLoginUsername, setCustomerLoginUsername] = useState("");
+  // Customer Login state (Phone Number or Email ID + Password — NO customer username)
+  const [loginMethod, setLoginMethod] = useState<"phone" | "email">("phone");
+  const [customerLoginCredential, setCustomerLoginCredential] = useState("");
   const [customerLoginPassword, setCustomerLoginPassword] = useState("");
   const [showCustomerLoginPassword, setShowCustomerLoginPassword] = useState(false);
 
@@ -105,15 +106,30 @@ export default function AuthModal({
   const isDark = theme === "dark";
 
   // -------------------------------------------------------------
-  // CUSTOMER SIGN IN: SUBMIT (Username + Password against Firestore)
+  // CUSTOMER LOGIN: SUBMIT (Phone or Email + Password via Firestore)
   // -------------------------------------------------------------
   const handleCustomerLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCustomerError("");
 
-    const usernameValue = customerLoginUsername.trim();
-    if (!usernameValue) {
-      setCustomerError("Please enter your username (name, email, or phone number).");
+    const credentialValue = customerLoginCredential.trim();
+    if (!credentialValue) {
+      setCustomerError(
+        loginMethod === "phone"
+          ? "Please enter your registered phone number."
+          : "Please enter your registered email ID."
+      );
+      return;
+    }
+
+    if (loginMethod === "phone") {
+      const digits = credentialValue.replace(/[^0-9]/g, "");
+      if (digits.length < 7) {
+        setCustomerError("Please enter a valid registered phone number (at least 7 digits).");
+        return;
+      }
+    } else if (!credentialValue.includes("@") || !credentialValue.includes(".")) {
+      setCustomerError("Please enter a valid registered email ID.");
       return;
     }
 
@@ -124,15 +140,19 @@ export default function AuthModal({
 
     setIsCheckingDb(true);
     try {
-      const matchedUser = await findUserByCredential(usernameValue);
+      const matchedUser = await findUserByCredential(credentialValue, loginMethod);
 
       if (!matchedUser) {
-        setCustomerError("No customer account found with that username. Please sign up first.");
+        setCustomerError(
+          loginMethod === "phone"
+            ? "No customer account found with this phone number. Please switch to Email ID or Sign Up first."
+            : "No customer account found with this email ID. Please switch to Phone Number or Sign Up first."
+        );
         return;
       }
 
       if (!matchedUser.password) {
-        setCustomerError("This account does not have a password set. Please register a new password account.");
+        setCustomerError("This account does not have a password set. Please sign up to create a password account.");
         return;
       }
 
@@ -163,7 +183,7 @@ export default function AuthModal({
     const cleanPassword = signupPassword;
 
     if (!cleanName) {
-      setCustomerError("Please enter your name (this will also be your login username).");
+      setCustomerError("Please enter your full name.");
       return;
     }
 
@@ -186,20 +206,18 @@ export default function AuthModal({
     setIsCheckingDb(true);
     try {
       const duplicateCheck = await checkExistingUserDuplicate({
-        name: cleanName,
         email: cleanEmail,
         phone: cleanPhone,
       });
 
       if (duplicateCheck.exists) {
-        setCustomerError(duplicateCheck.message || "An account with these details already exists. Please sign in.");
+        setCustomerError(duplicateCheck.message || "An account with this email or phone number already exists. Please log in.");
         return;
       }
 
       const newUser: UserProfile = {
         id: `usr_${Date.now().toString().slice(-6)}`,
         name: cleanName,
-        username: cleanName,
         email: cleanEmail,
         phone: cleanPhone,
         password: cleanPassword,
@@ -319,7 +337,7 @@ export default function AuthModal({
                   </span>
                 </div>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  {checkoutContext ? "Sign in or sign up to finalize your checkout" : "Authentication gateway for shoppers & administrators"}
+                  {checkoutContext ? "Log in or sign up to finalize your checkout" : "Login with Phone or Email & Merchant Portal"}
                 </p>
               </div>
             </div>
@@ -445,7 +463,7 @@ export default function AuthModal({
                 transition={{ duration: 0.18 }}
                 className="space-y-4"
               >
-                {/* Customer Sign In vs Sign Up Sub-Tabs */}
+                {/* Customer Login vs Sign Up Sub-Tabs */}
                 <div
                   className={`grid grid-cols-2 p-1 rounded-xl border ${
                     isDark ? "bg-zinc-950 border-zinc-850" : "bg-zinc-100/80 border-zinc-200/80"
@@ -457,7 +475,7 @@ export default function AuthModal({
                       setCustomerMode("signin");
                       setCustomerError("");
                     }}
-                    className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       customerMode === "signin"
                         ? isDark
                           ? "bg-zinc-800 text-white shadow-xs"
@@ -466,7 +484,7 @@ export default function AuthModal({
                     }`}
                     id="customer-signin-tab"
                   >
-                    Customer Sign In
+                    Login
                   </button>
                   <button
                     type="button"
@@ -474,7 +492,7 @@ export default function AuthModal({
                       setCustomerMode("signup");
                       setCustomerError("");
                     }}
-                    className={`py-2 text-xs font-bold rounded-lg transition-all ${
+                    className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       customerMode === "signup"
                         ? isDark
                           ? "bg-zinc-800 text-white shadow-xs"
@@ -483,7 +501,7 @@ export default function AuthModal({
                     }`}
                     id="customer-signup-tab"
                   >
-                    Customer Sign Up
+                    Sign Up
                   </button>
                 </div>
 
@@ -512,32 +530,86 @@ export default function AuthModal({
                 )}
 
                 {/* ============================================================== */}
-                {/* 1. CUSTOMER SIGN IN FORM (Username + Password)                 */}
+                {/* 1. CUSTOMER LOGIN FORM (Phone Number or Email ID + Password)   */}
                 {/* ============================================================== */}
                 {customerMode === "signin" ? (
                   <form onSubmit={handleCustomerLoginSubmit} className="space-y-4">
-                    <div>
-                      <label
-                        className={`block text-[10px] font-mono uppercase font-bold mb-1.5 ${
-                          isDark ? "text-zinc-400" : "text-zinc-600"
-                        }`}
-                      >
-                        Username *
-                      </label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <label
+                          className={`block text-[10px] font-mono uppercase font-bold ${
+                            isDark ? "text-zinc-400" : "text-zinc-600"
+                          }`}
+                        >
+                          {loginMethod === "phone" ? "Phone Number *" : "Email ID *"}
+                        </label>
+                        <div
+                          className={`inline-flex p-0.5 rounded-lg border text-[10px] font-mono font-bold ${
+                            isDark ? "bg-zinc-950 border-zinc-800" : "bg-zinc-100 border-zinc-200"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLoginMethod("phone");
+                              setCustomerLoginCredential("");
+                              setCustomerError("");
+                            }}
+                            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              loginMethod === "phone"
+                                ? "bg-emerald-500 text-zinc-950"
+                                : "text-zinc-400 hover:text-zinc-200"
+                            }`}
+                            id="login-method-phone-btn"
+                          >
+                            <Phone className="w-2.5 h-2.5" />
+                            Phone
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLoginMethod("email");
+                              setCustomerLoginCredential("");
+                              setCustomerError("");
+                            }}
+                            className={`px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                              loginMethod === "email"
+                                ? "bg-emerald-500 text-zinc-950"
+                                : "text-zinc-400 hover:text-zinc-200"
+                            }`}
+                            id="login-method-email-btn"
+                          >
+                            <Mail className="w-2.5 h-2.5" />
+                            Email
+                          </button>
+                        </div>
+                      </div>
+
                       <div className="relative">
-                        <User className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+                        {loginMethod === "phone" ? (
+                          <Phone className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+                        ) : (
+                          <Mail className="w-4 h-4 absolute left-3 top-3 text-zinc-400" />
+                        )}
                         <input
-                          type="text"
+                          type={loginMethod === "phone" ? "tel" : "email"}
                           required
-                          placeholder="Enter your name, email ID, or phone number"
-                          value={customerLoginUsername}
-                          onChange={(e) => setCustomerLoginUsername(e.target.value)}
+                          autoComplete={loginMethod === "phone" ? "tel" : "email"}
+                          placeholder={
+                            loginMethod === "phone"
+                              ? "+91 98765 43210"
+                              : "you@example.com"
+                          }
+                          value={customerLoginCredential}
+                          onChange={(e) => setCustomerLoginCredential(e.target.value)}
                           className={`w-full pl-9 pr-4 py-2.5 rounded-xl border text-xs outline-none transition-all ${
+                            loginMethod === "phone" ? "font-mono" : ""
+                          } ${
                             isDark
                               ? "bg-zinc-950 border-zinc-800 text-white focus:border-emerald-500"
                               : "bg-white border-zinc-300 text-zinc-900 focus:border-zinc-950"
                           }`}
-                          id="customer-login-username-input"
+                          id="customer-login-credential-input"
                         />
                       </div>
                     </div>
@@ -590,12 +662,12 @@ export default function AuthModal({
                       }`}
                       id="submit-customer-signin-btn"
                     >
-                      <span>Sign In</span>
+                      <span>Login</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
 
                     <p className="text-center text-xs text-zinc-500 pt-1">
-                      Don&apos;t have an account?{" "}
+                      New customer?{" "}
                       <button
                         type="button"
                         onClick={() => {
@@ -604,13 +676,13 @@ export default function AuthModal({
                         }}
                         className="text-emerald-500 font-bold hover:underline"
                       >
-                        Sign up
+                        Create an account
                       </button>
                     </p>
                   </form>
                 ) : (
                   /* ============================================================== */
-                  /* 2. CUSTOMER SIGN UP FORM (Name, Phone, Email, Password)        */
+                  /* 2. CUSTOMER SIGN UP FORM (Full Name, Phone, Email, Password)   */
                   /* ============================================================== */
                   <form onSubmit={handleCustomerSignupSubmit} className="space-y-3.5">
                     <div>
@@ -619,14 +691,14 @@ export default function AuthModal({
                           isDark ? "text-zinc-400" : "text-zinc-600"
                         }`}
                       >
-                        Name (Username) *
+                        Full Name *
                       </label>
                       <div className="relative">
                         <User className="w-4 h-4 absolute left-3 top-2.5 text-zinc-400" />
                         <input
                           type="text"
                           required
-                          placeholder="Enter your name"
+                          placeholder="Enter your full name"
                           value={signupName}
                           onChange={(e) => setSignupName(e.target.value)}
                           className={`w-full pl-9 pr-4 py-2 rounded-xl border text-xs outline-none transition-all ${
@@ -791,7 +863,7 @@ export default function AuthModal({
                         }}
                         className="text-emerald-500 font-bold hover:underline"
                       >
-                        Sign in
+                        Login
                       </button>
                     </p>
                   </form>

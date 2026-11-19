@@ -8,6 +8,9 @@ import {
   setDoc,
   deleteDoc,
   collection,
+  query,
+  where,
+  limit,
   onSnapshot,
   getDocFromServer,
   writeBatch,
@@ -99,15 +102,50 @@ export function normalizePhone(phone: string): string {
   return phone.replace(/[^0-9]/g, "");
 }
 
+export function normalizePhoneKey(phone: string): string {
+  const digits = normalizePhone(phone);
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 /**
- * Look up a user in Firestore matching their username/name, email, or phone credentials
+ * Look up a customer in Firestore strictly by Email ID or Phone Number (never by name/username).
  */
-export async function findUserByCredential(identifier: string): Promise<UserProfile | null> {
-  const trimmed = identifier.trim().toLowerCase();
-  if (!trimmed) return null;
-  const cleanPhone = normalizePhone(identifier);
+export async function findUserByCredential(
+  identifier: string,
+  loginMethod?: "phone" | "email"
+): Promise<UserProfile | null> {
+  const trimmedEmail = normalizeEmail(identifier);
+  if (!trimmedEmail) return null;
+
+  const phoneKey = normalizePhoneKey(identifier);
+  const looksLikeEmail = loginMethod === "email" || (!loginMethod && trimmedEmail.includes("@"));
+  const looksLikePhone = loginMethod === "phone" || (!looksLikeEmail && phoneKey.length >= 7);
 
   try {
+    // 1. Fast indexed Firestore lookup when normalized fields exist
+    if (looksLikeEmail) {
+      const emailSnap = await getDocs(
+        query(collection(db, "users"), where("normalizedEmail", "==", trimmedEmail), limit(1))
+      );
+      if (!emailSnap.empty) {
+        const d = emailSnap.docs[0];
+        return { ...(d.data() as UserProfile), id: d.id };
+      }
+    } else if (looksLikePhone && phoneKey.length >= 7) {
+      const phoneSnap = await getDocs(
+        query(collection(db, "users"), where("normalizedPhone", "==", phoneKey), limit(1))
+      );
+      if (!phoneSnap.empty) {
+        const d = phoneSnap.docs[0];
+        return { ...(d.data() as UserProfile), id: d.id };
+      }
+    }
+
+    // 2. Fallback scan for legacy customer docs created prior to normalizedEmail/normalizedPhone
     const usersSnapshot = await getDocs(collection(db, "users"));
     let matchedUser: UserProfile | null = null;
 
@@ -115,77 +153,91 @@ export async function findUserByCredential(identifier: string): Promise<UserProf
       if (matchedUser) return;
       const data = docSnap.data() as UserProfile;
 
-      const usernameMatches =
-        data.username && data.username.trim().toLowerCase() === trimmed;
-      const nameMatches = data.name && data.name.trim().toLowerCase() === trimmed;
-      const emailMatches = data.email && data.email.trim().toLowerCase() === trimmed;
-      const rawPhoneMatches = data.phone && data.phone.trim().toLowerCase() === trimmed;
-      const cleanPhoneMatches =
-        cleanPhone.length >= 7 &&
-        data.phone &&
-        normalizePhone(data.phone).endsWith(cleanPhone.slice(-10));
+      const emailMatches =
+        looksLikeEmail &&
+        Boolean(data.email) &&
+        normalizeEmail(data.email) === trimmedEmail;
 
-      if (
-        usernameMatches ||
-        nameMatches ||
-        emailMatches ||
-        rawPhoneMatches ||
-        cleanPhoneMatches
-      ) {
+      const rawPhoneMatches =
+        looksLikePhone &&
+        Boolean(data.phone) &&
+        data.phone.trim().toLowerCase() === trimmedEmail;
+
+      const cleanPhoneMatches =
+        looksLikePhone &&
+        phoneKey.length >= 7 &&
+        Boolean(data.phone) &&
+        normalizePhoneKey(data.phone) === phoneKey;
+
+      if (emailMatches || rawPhoneMatches || cleanPhoneMatches) {
         matchedUser = { ...data, id: docSnap.id };
       }
     });
 
     return matchedUser;
   } catch (error) {
-    console.error("Error looking up user by credential:", error);
+    console.error("Error looking up user by phone/email credential:", error);
     return null;
   }
 }
 
 /**
- * Check if a customer account already exists with the same username/name, email, or phone
+ * Check if a customer account already exists with the same Email ID or Phone Number
  */
 export async function checkExistingUserDuplicate(params: {
-  name: string;
   email: string;
   phone: string;
 }): Promise<{ exists: boolean; message?: string }> {
-  const targetName = params.name.trim().toLowerCase();
-  const targetEmail = params.email.trim().toLowerCase();
-  const targetPhone = normalizePhone(params.phone);
+  const targetEmail = normalizeEmail(params.email);
+  const targetPhone = normalizePhoneKey(params.phone);
 
   try {
+    if (targetEmail) {
+      const qEmail = await getDocs(
+        query(collection(db, "users"), where("normalizedEmail", "==", targetEmail), limit(1))
+      );
+      if (!qEmail.empty) {
+        return {
+          exists: true,
+          message: "An account with this email ID already exists. Please login instead.",
+        };
+      }
+    }
+
+    if (targetPhone.length >= 7) {
+      const qPhone = await getDocs(
+        query(collection(db, "users"), where("normalizedPhone", "==", targetPhone), limit(1))
+      );
+      if (!qPhone.empty) {
+        return {
+          exists: true,
+          message: "An account with this phone number already exists. Please login instead.",
+        };
+      }
+    }
+
+    // Fallback check for legacy docs without normalized fields
     const usersSnapshot = await getDocs(collection(db, "users"));
     for (const docSnap of usersSnapshot.docs) {
       const data = docSnap.data() as UserProfile;
-      const existingEmail = data.email?.trim().toLowerCase() || "";
-      const existingName = (data.username || data.name || "").trim().toLowerCase();
-      const existingDisplayName = data.name?.trim().toLowerCase() || "";
-      const existingPhone = data.phone ? normalizePhone(data.phone) : "";
+      const existingEmail = data.email ? normalizeEmail(data.email) : "";
+      const existingPhone = data.phone ? normalizePhoneKey(data.phone) : "";
 
       if (targetEmail && existingEmail === targetEmail) {
         return {
           exists: true,
-          message: "An account with this email ID already exists. Please sign in instead.",
+          message: "An account with this email ID already exists. Please login instead.",
         };
       }
 
       if (
         targetPhone.length >= 7 &&
         existingPhone.length >= 7 &&
-        existingPhone.slice(-10) === targetPhone.slice(-10)
+        existingPhone === targetPhone
       ) {
         return {
           exists: true,
-          message: "An account with this phone number already exists. Please sign in instead.",
-        };
-      }
-
-      if (targetName && (existingName === targetName || existingDisplayName === targetName)) {
-        return {
-          exists: true,
-          message: "This name/username is already registered. Please sign in or choose a different name.",
+          message: "An account with this phone number already exists. Please login instead.",
         };
       }
     }
@@ -213,18 +265,29 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 /**
- * Persist or update a user account in the Firestore database
+ * Persist or update a user account in the Firestore database (without username)
  */
 export async function saveUserProfile(user: UserProfile): Promise<void> {
   const path = `users/${user.id}`;
   try {
-    const payload = Object.fromEntries(
+    const { ...userCopy } = user as UserProfile & { username?: unknown };
+    delete userCopy.username;
+    const cleanPayload = Object.fromEntries(
       Object.entries({
-        ...user,
+        ...userCopy,
+        normalizedEmail: normalizeEmail(user.email || ""),
+        normalizedPhone: normalizePhoneKey(user.phone || ""),
         updatedAt: new Date().toISOString(),
       }).filter(([, value]) => value !== undefined)
     );
-    await setDoc(doc(db, "users", user.id), payload, { merge: true });
+    await setDoc(
+      doc(db, "users", user.id),
+      {
+        ...cleanPayload,
+        username: deleteField(),
+      },
+      { merge: true }
+    );
     console.log(`Saved user account ${user.id} to Firestore.`);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -413,46 +476,51 @@ export async function seedProductsIfEmpty(initialProducts: Product[]): Promise<b
 
     const batch = writeBatch(db);
     let hasChanges = false;
-    const hasAnySample = initialProducts.some((p) => p.id.startsWith("prod_sample_") && existingById.has(p.id));
-
-    if (!hasAnySample) {
-      initialProducts
-        .filter((p) => p.id.startsWith("prod_sample_") && !existingById.has(p.id))
-        .forEach((product) => {
-          batch.set(doc(db, "products", product.id), {
-            ...product,
-            updatedAt: new Date().toISOString(),
-          });
-          hasChanges = true;
+    // Backfill newly separated Women's Western samples & sync separated Men/Women collection labels
+    initialProducts
+      .filter((p) => !existingById.has(p.id) && (p.id.startsWith("prod_sample_womens_") || p.id.startsWith("prod_sample_")))
+      .forEach((product) => {
+        batch.set(doc(db, "products", product.id), {
+          ...product,
+          updatedAt: new Date().toISOString(),
         });
-    }
+        hasChanges = true;
+      });
 
-    // Backfill 2-photo backImage on existing default t-shirt docs if not yet present
+    // Migrate legacy default catalog items (mixed "Men & Women" / missing collection) cleanly to separated collections
     initialProducts.forEach((defaultProd) => {
-      if (!defaultProd.backImage) return;
       const existing = existingById.get(defaultProd.id);
-      if (existing && !existing.backImage) {
-        const nextImages =
+      if (!existing) return;
+
+      const patch: Record<string, unknown> = {};
+      if (!existing.collection && defaultProd.collection) {
+        patch.collection = defaultProd.collection;
+      }
+      if (existing.category && /men\s*&\s*women/i.test(existing.category) && defaultProd.category) {
+        patch.category = defaultProd.category;
+        patch.name = defaultProd.name;
+      } else if (existing.category && !existing.category.includes("(Men)") && !existing.category.includes("(Women)") && defaultProd.category) {
+        patch.category = defaultProd.category;
+      }
+      if (defaultProd.backImage && !existing.backImage) {
+        patch.backImage = defaultProd.backImage;
+        patch.images =
           existing.images && existing.images.length > 1 && existing.images.includes(defaultProd.backImage)
             ? existing.images
             : defaultProd.images;
-        batch.set(
-          doc(db, "products", defaultProd.id),
-          {
-            backImage: defaultProd.backImage,
-            images: nextImages,
-            colors: defaultProd.colors,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
+        patch.colors = defaultProd.colors;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        patch.updatedAt = new Date().toISOString();
+        batch.set(doc(db, "products", defaultProd.id), patch, { merge: true });
         hasChanges = true;
       }
     });
 
     if (hasChanges) {
       await batch.commit();
-      console.log("Synced catalog back-print images to Firestore database!");
+      console.log("Synced separated Men's & Women's catalog to Firestore database!");
       return true;
     }
     return false;

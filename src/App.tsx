@@ -5,7 +5,39 @@ import {
   Lock, ShieldCheck, KeyRound
 } from "lucide-react";
 import { Product, CartItem, Order, ResellerCalculator, UserProfile, BrandPartner, CustomerReview } from "./types";
-import { DEFAULT_PRODUCTS, CATEGORIES, DEFAULT_CALCULATOR, DEFAULT_ORDERS, DEFAULT_BRAND_PARTNERS } from "./data";
+import {
+  DEFAULT_PRODUCTS,
+  CATEGORIES,
+  MEN_CATEGORIES,
+  WOMEN_CATEGORIES,
+  inferProductCollection,
+  DEFAULT_CALCULATOR,
+  DEFAULT_ORDERS,
+  DEFAULT_BRAND_PARTNERS,
+} from "./data";
+
+function safeReadJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore storage errors
+    }
+    return fallback;
+  }
+}
+
+function safeWriteJson(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage quota or private-mode errors
+  }
+}
 
 // Component imports (above-the-fold eager, heavy modals/back-office code-split for fast FCP)
 import Header from "./components/Header";
@@ -192,7 +224,6 @@ export default function App() {
     const unsubProducts = subscribeProducts((dbProducts) => {
       if (dbProducts && dbProducts.length > 0) {
         setProducts(dbProducts);
-        localStorage.setItem("tshirt_reseller_products", JSON.stringify(dbProducts));
       }
     });
 
@@ -200,7 +231,6 @@ export default function App() {
     const unsubOrders = subscribeOrders((dbOrders) => {
       if (dbOrders && dbOrders.length > 0) {
         setOrders(dbOrders);
-        localStorage.setItem("tshirt_reseller_orders", JSON.stringify(dbOrders));
       }
     });
 
@@ -222,69 +252,72 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem("tshirt_reseller_user", JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem("tshirt_reseller_user");
+    try {
+      if (currentUser) {
+        localStorage.setItem("tshirt_reseller_user", JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem("tshirt_reseller_user");
+      }
+    } catch {
+      // Ignore storage errors
     }
   }, [currentUser]);
 
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem("tshirt_reseller_products");
-    if (saved) {
-      try {
-        const parsed: Product[] = JSON.parse(saved);
-        const defaultById = new Map(DEFAULT_PRODUCTS.map((dp) => [dp.id, dp]));
-        const existingIds = new Set(parsed.map((p) => p.id));
-        const hasAnySample = parsed.some((p) => p.id.startsWith("prod_sample_"));
-        const combined = hasAnySample
-          ? parsed
-          : [...DEFAULT_PRODUCTS.filter((p) => p.id.startsWith("prod_sample_") && !existingIds.has(p.id)), ...parsed];
-        const merged = combined.map((p) => {
-          const def = defaultById.get(p.id);
-          if (def?.backImage && !p.backImage) {
-            return {
-              ...p,
-              backImage: def.backImage,
-              images: p.images && p.images.length > 1 && p.images.includes(def.backImage) ? p.images : def.images,
-              colors: def.colors,
-            };
-          }
-          return p;
-        });
-        const hasAnyFeatured = merged.some((p) => p.isFeatured === true);
-        if (!hasAnyFeatured && merged.length > 0) {
-          return merged.map((p, idx) => ({
+    const parsed = safeReadJson<Product[]>("tshirt_reseller_products", []);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const defaultById = new Map(DEFAULT_PRODUCTS.map((dp) => [dp.id, dp]));
+      const existingIds = new Set(parsed.map((p) => p.id));
+      const missingDefaults = DEFAULT_PRODUCTS.filter((p) => !existingIds.has(p.id));
+      const combined = [...parsed, ...missingDefaults];
+      const merged = combined.map((p) => {
+        const def = defaultById.get(p.id);
+        const normalizedCollection = p.collection || def?.collection || inferProductCollection(p);
+        const normalizedCategory =
+          def && p.category?.includes("Men & Women") ? def.category : p.category;
+        if (def?.backImage && !p.backImage) {
+          return {
             ...p,
-            isFeatured: idx < 4,
-          }));
+            category: normalizedCategory,
+            collection: normalizedCollection,
+            backImage: def.backImage,
+            images: p.images && p.images.length > 1 && p.images.includes(def.backImage) ? p.images : def.images,
+            colors: def.colors,
+          };
         }
-        return merged;
-      } catch (e) {
-        return DEFAULT_PRODUCTS;
+        return {
+          ...p,
+          category: normalizedCategory,
+          collection: normalizedCollection,
+        };
+      });
+      const hasAnyFeatured = merged.some((p) => p.isFeatured === true);
+      if (!hasAnyFeatured && merged.length > 0) {
+        return merged.map((p, idx) => ({
+          ...p,
+          isFeatured: idx < 4,
+        }));
       }
+      return merged;
     }
     return DEFAULT_PRODUCTS;
   });
 
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem("tshirt_reseller_orders");
-    return saved ? JSON.parse(saved) : DEFAULT_ORDERS;
-  });
+  const [orders, setOrders] = useState<Order[]>(() =>
+    safeReadJson<Order[]>("tshirt_reseller_orders", DEFAULT_ORDERS)
+  );
 
-  const [brandPartners, setBrandPartners] = useState<BrandPartner[]>(() => {
-    const saved = localStorage.getItem("tshirt_reseller_brand_partners");
-    return saved ? JSON.parse(saved) : DEFAULT_BRAND_PARTNERS;
-  });
+  const [brandPartners, setBrandPartners] = useState<BrandPartner[]>(() =>
+    safeReadJson<BrandPartner[]>("tshirt_reseller_brand_partners", DEFAULT_BRAND_PARTNERS)
+  );
 
   useEffect(() => {
-    localStorage.setItem("tshirt_reseller_brand_partners", JSON.stringify(brandPartners));
+    safeWriteJson("tshirt_reseller_brand_partners", brandPartners);
   }, [brandPartners]);
 
-  const [calculator, setCalculator] = useState<ResellerCalculator>(() => {
-    const saved = localStorage.getItem("tshirt_reseller_calculator");
-    return saved ? JSON.parse(saved) : DEFAULT_CALCULATOR;
-  });
+  const [calculator, setCalculator] = useState<ResellerCalculator>(() =>
+    safeReadJson<ResellerCalculator>("tshirt_reseller_calculator", DEFAULT_CALCULATOR)
+  );
 
   const [brandName, setBrandName] = useState<string>(() => {
     return localStorage.getItem("tshirt_reseller_brand") || "THREAD DEN";
@@ -361,12 +394,38 @@ export default function App() {
     localStorage.setItem("tshirt_reseller_price_alerts", JSON.stringify(priceAlertProductIds));
   }, [priceAlertProductIds]);
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+        audioCtxRef.current.close().catch(() => {});
+        audioCtxRef.current = null;
+      }
+    };
+  }, []);
+
+  const getSharedAudioContext = (): AudioContext | null => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+      return audioCtxRef.current;
+    } catch {
+      return null;
+    }
+  };
+
   const playNotificationChime = () => {
     if (!soundEnabled) return;
     try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        const audioCtx = new AudioContextClass();
+      const audioCtx = getSharedAudioContext();
+      if (audioCtx) {
         const playTone = (freq: number, startTime: number, duration: number) => {
           const osc = audioCtx.createOscillator();
           const gainNode = audioCtx.createGain();
@@ -378,6 +437,10 @@ export default function App() {
           gainNode.connect(audioCtx.destination);
           osc.start(startTime);
           osc.stop(startTime + duration);
+          osc.onended = () => {
+            osc.disconnect();
+            gainNode.disconnect();
+          };
         };
         const now = audioCtx.currentTime;
         playTone(523.25, now, 0.15); // C5
@@ -462,8 +525,26 @@ export default function App() {
   };
 
   // Active Customer Filters
+  const [selectedCollection, setSelectedCollection] = useState<"all" | "men" | "women">("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  const handleSelectCollection = (nextCollection: "all" | "men" | "women") => {
+    setSelectedCollection(nextCollection);
+    if (
+      nextCollection === "men" &&
+      selectedCategory !== "All" &&
+      !MEN_CATEGORIES.includes(selectedCategory)
+    ) {
+      setSelectedCategory("All");
+    } else if (
+      nextCollection === "women" &&
+      selectedCategory !== "All" &&
+      !WOMEN_CATEGORIES.includes(selectedCategory)
+    ) {
+      setSelectedCategory("All");
+    }
+  };
 
   // Dynamic Catalog Price Range Calculation
   const catalogMinPrice = React.useMemo(() => {
@@ -495,17 +576,17 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
 
-  // Sync state modifications to LocalStorage
+  // Sync state modifications to LocalStorage safely
   useEffect(() => {
-    localStorage.setItem("tshirt_reseller_products", JSON.stringify(products));
+    safeWriteJson("tshirt_reseller_products", products);
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem("tshirt_reseller_orders", JSON.stringify(orders));
+    safeWriteJson("tshirt_reseller_orders", orders);
   }, [orders]);
 
   useEffect(() => {
-    localStorage.setItem("tshirt_reseller_calculator", JSON.stringify(calculator));
+    safeWriteJson("tshirt_reseller_calculator", calculator);
   }, [calculator]);
 
   // --- PUSH NOTIFICATION SIMULATOR STATE & LOGIC ---
@@ -542,12 +623,11 @@ export default function App() {
 
         setNotifications((prev) => [newNotif, ...prev]);
 
-        // Synthesize a beautiful double-beep push notification audio chime
+        // Synthesize a double-beep push notification audio chime via shared AudioContext
         if (soundEnabled) {
           try {
-            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-            if (AudioContextClass) {
-              const audioCtx = new AudioContextClass();
+            const audioCtx = getSharedAudioContext();
+            if (audioCtx) {
               const playChimeTone = (freq: number, startTime: number, duration: number) => {
                 const osc = audioCtx.createOscillator();
                 const gainNode = audioCtx.createGain();
@@ -559,6 +639,10 @@ export default function App() {
                 gainNode.connect(audioCtx.destination);
                 osc.start(startTime);
                 osc.stop(startTime + duration);
+                osc.onended = () => {
+                  osc.disconnect();
+                  gainNode.disconnect();
+                };
               };
               const now = audioCtx.currentTime;
               playChimeTone(587.33, now, 0.15); // D5
@@ -653,7 +737,6 @@ export default function App() {
   // Synchronize article updates, additions and removals with Firestore database
   const handleUpdateProducts = async (updated: Product[]) => {
     setProducts(updated);
-    localStorage.setItem("tshirt_reseller_products", JSON.stringify(updated));
 
     try {
       const updatedIds = new Set(updated.map((p) => p.id));
@@ -675,7 +758,6 @@ export default function App() {
   // Synchronize user profile updates, saved addresses, and bank details with Firestore database
   const handleUpdateUser = async (updatedUser: UserProfile) => {
     setCurrentUser(updatedUser);
-    localStorage.setItem("tshirt_reseller_user", JSON.stringify(updatedUser));
     try {
       await saveUserProfile(updatedUser);
       console.log("Updated user account profile in Firestore database:", updatedUser.name);
@@ -910,22 +992,35 @@ export default function App() {
       {
         id: `notif-${Date.now()}`,
         title: "Order Cancelled & Restocked",
-        message: `Order ${orderId} was cancelled. Inventory items were added back to stock count.`,
+        body: `Order ${orderId} was cancelled. Inventory items were added back to stock count.`,
         timestamp: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
-        type: "stock",
       },
       ...prev,
     ]);
   };
 
-  // --- 3. FILTER LOGIC FOR CUSTOMERS ---
+  // --- 3. FILTER LOGIC & COLLECTION SEPARATION FOR CUSTOMERS ---
+  const activeCategoryTabs =
+    selectedCollection === "men"
+      ? ["All", ...MEN_CATEGORIES]
+      : selectedCollection === "women"
+      ? ["All", ...WOMEN_CATEGORIES]
+      : CATEGORIES;
+
   const filteredProducts = products.filter((p) => {
+    const col = inferProductCollection(p);
+    const matchCollection = selectedCollection === "all" || col === selectedCollection;
     const matchCategory = selectedCategory === "All" || p.category === selectedCategory;
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        p.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch =
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchQuery.toLowerCase());
     const matchPrice = p.price >= minPriceFilter && p.price <= maxPriceFilter;
-    return matchCategory && matchSearch && matchPrice;
+    return matchCollection && matchCategory && matchSearch && matchPrice;
   });
+
+  const mensProducts = filteredProducts.filter((p) => inferProductCollection(p) === "men");
+  const womensProducts = filteredProducts.filter((p) => inferProductCollection(p) === "women");
 
   const cartTotalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -983,20 +1078,61 @@ export default function App() {
               }`}>
                 <div>
                   <h2 className={`font-display font-bold text-2xl ${isDark ? "text-white" : "text-zinc-900"}`}>
-                    Men&apos;s &amp; Women&apos;s Collection
+                    {selectedCollection === "men"
+                      ? "Men's Collection"
+                      : selectedCollection === "women"
+                      ? "Women's Collection"
+                      : "Dedicated Men's & Women's Collections"}
                   </h2>
                   <p className="text-zinc-500 text-xs mt-1">
-                    Oversized &amp; Drop Shoulder tees, Polos, Men&apos;s Shirts, Sarees &amp; Chididhar Tops — try every article on your miniature.
+                    Men&apos;s and Women&apos;s lines curated separately — oversized streetwear, polos &amp; shirts for Men, and sarees, chudidhars &amp; western cuts for Women.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  {/* Separated Collection Switcher */}
+                  <div
+                    className={`inline-flex p-1 rounded-xl border ${
+                      isDark ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-xs"
+                    }`}
+                    id="collection-switcher-bar"
+                  >
+                    {([
+                      { id: "all", label: "All Collections" },
+                      { id: "men", label: "Men's" },
+                      { id: "women", label: "Women's" },
+                    ] as const).map((tab) => {
+                      const active = selectedCollection === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => handleSelectCollection(tab.id)}
+                          id={`collection-tab-${tab.id}`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            active
+                              ? tab.id === "women"
+                                ? "bg-rose-500 text-white shadow-xs"
+                                : tab.id === "men"
+                                ? "bg-sky-500 text-zinc-950 shadow-xs"
+                                : "bg-emerald-500 text-zinc-950 shadow-xs"
+                              : isDark
+                              ? "text-zinc-400 hover:text-white"
+                              : "text-zinc-600 hover:text-zinc-950"
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
                   {/* Filter Button */}
                   <button
                     type="button"
                     onClick={() => setIsFilterModalOpen(true)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border flex items-center gap-2 shadow-xs cursor-pointer ${
-                      (selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice)
+                      (selectedCollection !== "all" || selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice)
                         ? "bg-emerald-500 hover:bg-emerald-400 text-zinc-950 border-emerald-400 shadow-emerald-500/10"
                         : isDark
                         ? "bg-zinc-900 hover:bg-zinc-850 text-white border-zinc-800"
@@ -1006,15 +1142,15 @@ export default function App() {
                   >
                     <SlidersHorizontal className="w-4 h-4" />
                     <span>Filter</span>
-                    {(selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice) && (
+                    {(selectedCollection !== "all" || selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice) && (
                       <span className="w-5 h-5 rounded-full bg-zinc-950 text-white font-mono text-[10px] flex items-center justify-center font-bold">
-                        {(selectedCategory !== "All" ? 1 : 0) + (minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice ? 1 : 0)}
+                        {(selectedCollection !== "all" ? 1 : 0) + (selectedCategory !== "All" ? 1 : 0) + (minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice ? 1 : 0)}
                       </span>
                     )}
                   </button>
 
                   {/* Live Search bar */}
-                  <div className="relative max-w-xs w-full">
+                  <div className="relative max-w-xs w-full sm:w-56">
                     <input
                       type="text"
                       placeholder="Search styles, fits, sarees..."
@@ -1030,7 +1166,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Quick Category Navigation Tabs */}
+              {/* Quick Category Navigation Tabs (Scoped to Selected Collection) */}
               <div className="relative flex items-center gap-2">
                 <button
                   type="button"
@@ -1049,7 +1185,7 @@ export default function App() {
                   ref={categoryRailRef}
                   className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth flex-1 py-0.5"
                 >
-                  {CATEGORIES.map((cat) => {
+                  {activeCategoryTabs.map((cat) => {
                     const isActive = selectedCategory === cat;
                     return (
                       <button
@@ -1088,11 +1224,26 @@ export default function App() {
               </div>
 
               {/* Active Filter Pills Bar */}
-              {(selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice) && (
+              {(selectedCollection !== "all" || selectedCategory !== "All" || minPriceFilter > catalogMinPrice || maxPriceFilter < catalogMaxPrice) && (
                 <div className="flex flex-wrap items-center gap-2 pt-1 pb-1 animate-in fade-in duration-200">
                   <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold mr-1">
                     Active Filters:
                   </span>
+
+                  {selectedCollection !== "all" && (
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${
+                      isDark ? "bg-zinc-900 border-zinc-800 text-emerald-400" : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                    }`}>
+                      <span>Collection: {selectedCollection === "men" ? "Men's" : "Women's"}</span>
+                      <button
+                        onClick={() => handleSelectCollection("all")}
+                        className="p-0.5 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                        title="Show both collections"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  )}
 
                   {selectedCategory !== "All" && (
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 border ${
@@ -1129,6 +1280,7 @@ export default function App() {
 
                   <button
                     onClick={() => {
+                      handleSelectCollection("all");
                       setSelectedCategory("All");
                       setMinPriceFilter(catalogMinPrice);
                       setMaxPriceFilter(catalogMaxPrice);
@@ -1140,7 +1292,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* Products Grid Gallery */}
+              {/* Separated Collection Grids */}
               {filteredProducts.length === 0 ? (
                 <div className={`text-center py-16 border rounded-3xl space-y-4 p-6 ${
                   isDark ? "bg-zinc-900 border-zinc-850" : "bg-white border-zinc-200/60"
@@ -1151,9 +1303,9 @@ export default function App() {
                     <AlertCircle className="w-5 h-5 text-amber-500" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className={`font-display font-bold text-sm ${isDark ? "text-white" : "text-zinc-800"}`}>No items match your price or search filters</h3>
+                    <h3 className={`font-display font-bold text-sm ${isDark ? "text-white" : "text-zinc-800"}`}>No items match your collection or search filters</h3>
                     <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                      No t-shirts fit within {currencySymbol}{minPriceFilter.toLocaleString()} – {currencySymbol}{maxPriceFilter.toLocaleString()} for this search. Try adjusting the slider range or resetting filters.
+                      No articles fit within {currencySymbol}{minPriceFilter.toLocaleString()} – {currencySymbol}{maxPriceFilter.toLocaleString()} for this filter. Try switching collections or resetting filters.
                     </p>
                   </div>
 
@@ -1161,6 +1313,7 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setSearchQuery("");
+                      handleSelectCollection("all");
                       setSelectedCategory("All");
                       setMinPriceFilter(catalogMinPrice);
                       setMaxPriceFilter(catalogMaxPrice);
@@ -1171,19 +1324,92 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {filteredProducts.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      currencySymbol={currencySymbol}
-                      onSelect={(product) => setSelectedProduct(product)}
-                      onVisualizeWithAiStylist={(product, color, view) => handleOpenStylist(product, color, view)}
-                      isWishlisted={wishlistProductIds.includes(p.id)}
-                      onToggleWishlist={handleToggleWishlist}
-                      theme={theme}
-                    />
-                  ))}
+                <div className="space-y-12">
+                  {/* MEN'S COLLECTION SECTION */}
+                  {(selectedCollection === "all" || selectedCollection === "men") && mensProducts.length > 0 && (
+                    <section id="mens-collection-section" className="space-y-5">
+                      <div className={`flex items-center justify-between gap-3 pb-3 border-b ${
+                        isDark ? "border-zinc-800/80" : "border-zinc-200"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/30 text-sky-400 font-mono text-[10px] font-black uppercase tracking-wider">
+                            Men&apos;s Edit
+                          </span>
+                          <div>
+                            <h3 className={`font-display font-black text-lg sm:text-xl ${isDark ? "text-white" : "text-zinc-900"}`}>
+                              Men&apos;s Collection
+                            </h3>
+                            <p className="text-xs text-zinc-500">
+                              Oversized &amp; Drop Shoulder tees, Acid Wash, Jersey, Polos &amp; Men&apos;s Shirts
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`font-mono text-xs font-bold px-3 py-1 rounded-full border ${
+                          isDark ? "bg-zinc-900 border-zinc-800 text-zinc-300" : "bg-white border-zinc-200 text-zinc-700"
+                        }`}>
+                          {mensProducts.length} Styles
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {mensProducts.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            currencySymbol={currencySymbol}
+                            onSelect={(product) => setSelectedProduct(product)}
+                            onVisualizeWithAiStylist={(product, color, view) => handleOpenStylist(product, color, view)}
+                            isWishlisted={wishlistProductIds.includes(p.id)}
+                            onToggleWishlist={handleToggleWishlist}
+                            theme={theme}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* WOMEN'S COLLECTION SECTION */}
+                  {(selectedCollection === "all" || selectedCollection === "women") && womensProducts.length > 0 && (
+                    <section id="womens-collection-section" className="space-y-5">
+                      <div className={`flex items-center justify-between gap-3 pb-3 border-b ${
+                        isDark ? "border-zinc-800/80" : "border-zinc-200"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <span className="px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 font-mono text-[10px] font-black uppercase tracking-wider">
+                            Women&apos;s Edit
+                          </span>
+                          <div>
+                            <h3 className={`font-display font-black text-lg sm:text-xl ${isDark ? "text-white" : "text-zinc-900"}`}>
+                              Women&apos;s Collection
+                            </h3>
+                            <p className="text-xs text-zinc-500">
+                              Handloom Sarees, Chididhar Sets &amp; Women&apos;s Cropped / Relaxed Western Cuts
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`font-mono text-xs font-bold px-3 py-1 rounded-full border ${
+                          isDark ? "bg-zinc-900 border-zinc-800 text-zinc-300" : "bg-white border-zinc-200 text-zinc-700"
+                        }`}>
+                          {womensProducts.length} Styles
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {womensProducts.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            currencySymbol={currencySymbol}
+                            onSelect={(product) => setSelectedProduct(product)}
+                            onVisualizeWithAiStylist={(product, color, view) => handleOpenStylist(product, color, view)}
+                            isWishlisted={wishlistProductIds.includes(p.id)}
+                            onToggleWishlist={handleToggleWishlist}
+                            theme={theme}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
             </div>
@@ -1361,7 +1587,9 @@ export default function App() {
           <FilterModal
             isOpen={isFilterModalOpen}
             onClose={() => setIsFilterModalOpen(false)}
-            categories={CATEGORIES}
+            selectedCollection={selectedCollection}
+            onSelectCollection={handleSelectCollection}
+            categories={activeCategoryTabs}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             minPrice={minPriceFilter}
@@ -1371,6 +1599,7 @@ export default function App() {
             onChangeMinPrice={setMinPriceFilter}
             onChangeMaxPrice={setMaxPriceFilter}
             onResetFilters={() => {
+              handleSelectCollection("all");
               setSelectedCategory("All");
               setMinPriceFilter(catalogMinPrice);
               setMaxPriceFilter(catalogMaxPrice);

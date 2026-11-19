@@ -41,14 +41,20 @@ interface StoredBillRecord {
   filename: string;
   filePath: string;
   buffer: Buffer;
-  order: PdfOrderPayload;
   createdAt: string;
+  createdAtMs: number;
+  sizeBytes: number;
   token: string;
 }
 
 const BILLS_DIR = "/tmp/thread_den_bills";
 const BILL_TOKEN_SECRET =
   process.env.RAZORPAY_KEY_SECRET?.trim() || "thread_den_pdf_bill_secret_v1";
+const MAX_MEMORY_BILLS = 25;
+const MEMORY_BILL_TTL_MS = 15 * 60 * 1000;
+const DISK_BILL_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_DISK_BILLS = 200;
+const BILL_CLEANUP_INTERVAL_MS = 10 * 60 * 1000;
 
 try {
   if (!fs.existsSync(BILLS_DIR)) {
@@ -59,6 +65,79 @@ try {
 }
 
 const storedBills = new Map<string, StoredBillRecord>();
+
+function pruneStoredBillsInMemory(now = Date.now()): void {
+  for (const [key, rec] of storedBills.entries()) {
+    if (now - rec.createdAtMs > MEMORY_BILL_TTL_MS) {
+      storedBills.delete(key);
+    }
+  }
+  while (storedBills.size > MAX_MEMORY_BILLS) {
+    const oldestKey = storedBills.keys().next().value;
+    if (!oldestKey) break;
+    storedBills.delete(oldestKey);
+  }
+}
+
+function pruneDiskBills(now = Date.now()): void {
+  try {
+    if (!fs.existsSync(BILLS_DIR)) return;
+    const files = fs
+      .readdirSync(BILLS_DIR)
+      .filter((f) => f.endsWith(".pdf"))
+      .map((name) => {
+        const fullPath = path.join(BILLS_DIR, name);
+        try {
+          const stat = fs.statSync(fullPath);
+          return { fullPath, mtimeMs: stat.mtimeMs };
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is { fullPath: string; mtimeMs: number } => Boolean(x));
+
+    const remaining: { fullPath: string; mtimeMs: number }[] = [];
+    for (const entry of files) {
+      if (now - entry.mtimeMs > DISK_BILL_TTL_MS) {
+        try {
+          fs.unlinkSync(entry.fullPath);
+        } catch {
+          // Ignore individual unlink failures
+        }
+      } else {
+        remaining.push(entry);
+      }
+    }
+
+    if (remaining.length > MAX_DISK_BILLS) {
+      remaining.sort((a, b) => a.mtimeMs - b.mtimeMs);
+      const excess = remaining.length - MAX_DISK_BILLS;
+      for (let i = 0; i < excess; i++) {
+        try {
+          fs.unlinkSync(remaining[i].fullPath);
+        } catch {
+          // Ignore individual unlink failures
+        }
+      }
+    }
+  } catch {
+    // Ignore cleanup errors
+  }
+}
+
+setInterval(() => {
+  const now = Date.now();
+  pruneStoredBillsInMemory(now);
+  pruneDiskBills(now);
+}, BILL_CLEANUP_INTERVAL_MS).unref();
+
+function isValidBillToken(billNumber: string, token: string): boolean {
+  if (!billNumber || !token) return false;
+  const expected = createBillAccessToken(billNumber);
+  const expBuf = Buffer.from(expected, "utf8");
+  const actBuf = Buffer.from(token.trim(), "utf8");
+  return expBuf.length === actBuf.length && crypto.timingSafeEqual(expBuf, actBuf);
+}
 
 function formatPdfAmount(amount: number, currencySymbol = "₹"): string {
   const prefix = currencySymbol === "₹" ? "Rs. " : `${currencySymbol} `;
@@ -523,15 +602,20 @@ export async function generateAndStorePdfBill(params: {
     // Memory cache still holds the full buffer
   }
 
+  const nowMs = Date.now();
+  storedBills.delete(billNumber);
   storedBills.set(billNumber, {
     billNumber,
     filename,
     filePath,
     buffer,
-    order,
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(nowMs).toISOString(),
+    createdAtMs: nowMs,
+    sizeBytes: buffer.byteLength,
     token,
   });
+  pruneStoredBillsInMemory(nowMs);
+  pruneDiskBills(nowMs);
 
   const pdfPath = `/api/bills/${encodeURIComponent(billNumber)}.pdf?token=${token}`;
   const pdfUrl = baseUrl ? `${baseUrl.replace(/\/+$/, "")}${pdfPath}` : pdfPath;
@@ -548,7 +632,13 @@ export async function generateAndStorePdfBill(params: {
 
 export function getStoredPdfBill(billNumber: string): StoredBillRecord | undefined {
   const clean = billNumber.replace(/[^a-zA-Z0-9._-]/g, "");
-  return storedBills.get(clean);
+  const rec = storedBills.get(clean);
+  if (!rec) return undefined;
+  if (Date.now() - rec.createdAtMs > MEMORY_BILL_TTL_MS) {
+    storedBills.delete(clean);
+    return undefined;
+  }
+  return rec;
 }
 
 export function registerBillPdfRoutes(app: express.Application) {
@@ -558,6 +648,12 @@ export function registerBillPdfRoutes(app: express.Application) {
   app.get("/api/bills/:billNumber.pdf", (req, res) => {
     const rawBill = String(req.params.billNumber || "");
     const cleanBill = rawBill.replace(/[^a-zA-Z0-9._-]/g, "");
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+
+    if (!cleanBill || !isValidBillToken(cleanBill, token)) {
+      return res.status(403).json({ error: "Invalid or missing bill access token." });
+    }
+
     const record = getStoredPdfBill(cleanBill);
 
     if (record) {
@@ -569,8 +665,18 @@ export function registerBillPdfRoutes(app: express.Application) {
 
     const diskPath = path.join(BILLS_DIR, `${cleanBill}.pdf`);
     if (fs.existsSync(diskPath)) {
+      try {
+        const stat = fs.statSync(diskPath);
+        if (Date.now() - stat.mtimeMs > DISK_BILL_TTL_MS) {
+          fs.unlinkSync(diskPath);
+          return res.status(404).json({ error: "Generated PDF invoice not found or expired." });
+        }
+      } catch {
+        // Proceed to serve or fail safely
+      }
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `inline; filename="Invoice_${cleanBill}.pdf"`);
+      res.setHeader("Cache-Control", "no-store");
       return res.sendFile(diskPath);
     }
 

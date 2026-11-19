@@ -6,6 +6,8 @@ import PriceRangeFilter from "./PriceRangeFilter";
 interface FilterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  selectedCollection?: "all" | "men" | "women";
+  onSelectCollection?: (collection: "all" | "men" | "women") => void;
   categories: string[];
   selectedCategory: string;
   onSelectCategory: (category: string) => void;
@@ -25,6 +27,8 @@ interface FilterModalProps {
 export default function FilterModal({
   isOpen,
   onClose,
+  selectedCollection = "all",
+  onSelectCollection,
   categories,
   selectedCategory,
   onSelectCategory,
@@ -45,9 +49,10 @@ export default function FilterModal({
   const isDark = theme === "dark";
 
   // Check how many filters are active
+  const isCollectionFiltered = selectedCollection !== "all";
   const isCategoryFiltered = selectedCategory !== "All";
   const isPriceFiltered = minPrice > catalogMinPrice || maxPrice < catalogMaxPrice;
-  const activeCount = (isCategoryFiltered ? 1 : 0) + (isPriceFiltered ? 1 : 0);
+  const activeCount = (isCollectionFiltered ? 1 : 0) + (isCategoryFiltered ? 1 : 0) + (isPriceFiltered ? 1 : 0);
 
   return (
     <AnimatePresence>
@@ -91,7 +96,7 @@ export default function FilterModal({
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-zinc-400">Refine catalog by category, fit, or price range</p>
+                <p className="text-xs text-zinc-400">Filter separated Men&apos;s &amp; Women&apos;s collections or price range</p>
               </div>
             </div>
 
@@ -108,7 +113,45 @@ export default function FilterModal({
 
           {/* Modal Content Body */}
           <div className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
-            
+            {onSelectCollection && (
+              <div className="space-y-2.5">
+                <label className="text-xs font-bold uppercase tracking-wider font-mono text-zinc-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  Select Collection
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: "all", label: "Both Separated" },
+                    { id: "men", label: "Men's Collection" },
+                    { id: "women", label: "Women's Collection" },
+                  ] as const).map((col) => {
+                    const active = selectedCollection === col.id;
+                    return (
+                      <button
+                        key={col.id}
+                        type="button"
+                        onClick={() => onSelectCollection(col.id)}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                          active
+                            ? col.id === "women"
+                              ? "bg-rose-500 text-white border-rose-400 shadow-md"
+                              : col.id === "men"
+                              ? "bg-sky-500 text-zinc-950 border-sky-400 shadow-md"
+                              : "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-md"
+                            : isDark
+                            ? "bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border-zinc-800/80"
+                            : "bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border-zinc-200"
+                        }`}
+                        id={`filter-collection-btn-${col.id}`}
+                      >
+                        {col.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* 1. Category Selection */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">

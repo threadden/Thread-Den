@@ -138,14 +138,50 @@ export function getProductBackImage(product: Product, colorNameOrHex?: string): 
   return "";
 }
 
+export type ProductCollection = "men" | "women";
+
+export const MEN_CATEGORIES = [
+  "Oversized Tshirts (Men)",
+  "Drop Shoulder (Men)",
+  "Polo Tshirts (Men)",
+  "Shirts (Men)",
+  "Acid Wash (Men)",
+  "Jersey (Men)",
+  "Oversized Printed (Men)",
+  "Oversized Plain (Men)",
+];
+
+export const WOMEN_CATEGORIES = [
+  "Sarees (Women)",
+  "Chididhar Top (Women)",
+  "Oversized Tshirts (Women)",
+  "Drop Shoulder (Women)",
+  "Polo Tshirts (Women)",
+];
+
+export function inferProductCollection(product: Pick<Product, "collection" | "category" | "name">): ProductCollection {
+  if (product.collection === "women" || product.collection === "men") {
+    return product.collection;
+  }
+  const hay = `${product.category || ""} ${product.name || ""}`.toLowerCase();
+  if (
+    /\bwomen'?s?\b|\bsaree\b|\bsarees\b|\bchididhar\b|\bchudidhar\b|\bkurti\b|\bkurta\b/.test(hay) &&
+    !/men\s*&\s*women/.test(hay)
+  ) {
+    return "women";
+  }
+  return "men";
+}
+
 export const DEFAULT_PRODUCTS: Product[] = [
   {
     id: "prod_sample_oversized_men_women",
-    name: "Core 260GSM Boxy Oversized T-Shirt",
-    description: "Unisex 260GSM combed cotton oversized t-shirt for men and women featuring a bold architectural geometric back print. Structured crew ribbing and clean washed charcoal pigment finish.",
+    name: "Men's Core 260GSM Boxy Oversized T-Shirt",
+    description: "Men's 260GSM combed cotton oversized t-shirt featuring a bold architectural geometric back print. Structured crew ribbing and clean washed charcoal pigment finish.",
     basePrice: 640,
     price: 1490,
-    category: "Oversized Tshirts (Men & Women)",
+    collection: "men",
+    category: "Oversized Tshirts (Men)",
     images: [
       "/assets/images/sample_oversized_tee_1794638342281.jpg",
       "/assets/images/sample_oversized_back_1794643591280.jpg"
@@ -165,7 +201,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
         backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
       }
     ],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
+    sizes: ["S", "M", "L", "XL", "XXL"],
     isAvailable: true,
     stockCount: 38,
     brandId: "brand_rawbasics",
@@ -175,17 +211,18 @@ export const DEFAULT_PRODUCTS: Product[] = [
     brandPhone: "+91 99002 34567",
     brandWhatsapp: "+91 99002 34567",
     brandLocation: "Indiranagar, Bengaluru",
-    sku: "RCL-OVS-260",
+    sku: "RCL-OVS-MEN-260",
     initialStock: 80,
     isFeatured: true,
   },
   {
     id: "prod_sample_drop_shoulder_unisex",
-    name: "Unisex Studio Drop Shoulder Tee",
-    description: "Engineered with deep dropped shoulder seams, relaxed boxy drape, and an oversized botanical street-art back print suited for both men and women. Soft enzyme-washed 250GSM jersey.",
+    name: "Men's Studio Drop Shoulder Tee",
+    description: "Men's tee engineered with deep dropped shoulder seams, relaxed boxy drape, and an oversized botanical street-art back print. Soft enzyme-washed 250GSM jersey.",
     basePrice: 660,
     price: 1590,
-    category: "Drop Shoulder (Men & Women)",
+    collection: "men",
+    category: "Drop Shoulder (Men)",
     images: [
       "/assets/images/sample_drop_shoulder_1794638341648.jpg",
       "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
@@ -215,17 +252,18 @@ export const DEFAULT_PRODUCTS: Product[] = [
     brandPhone: "+91 98201 12345",
     brandWhatsapp: "+91 98201 12345",
     brandLocation: "Bandra West, Mumbai",
-    sku: "KLT-DROP-250",
+    sku: "KLT-DROP-MEN-250",
     initialStock: 75,
     isFeatured: true,
   },
   {
     id: "prod_sample_polo_unisex",
-    name: "Textured Knit Collar Polo T-Shirt",
-    description: "Breathable ribbed knit pique polo t-shirt tailored for men and women. Features contrast cream tipped collar, open heritage placket, and an embroidered crest back emblem.",
+    name: "Men's Textured Knit Collar Polo T-Shirt",
+    description: "Men's breathable ribbed knit pique polo t-shirt with contrast cream tipped collar, open heritage placket, and an embroidered crest back emblem.",
     basePrice: 720,
     price: 1690,
-    category: "Polo Tshirts (Men & Women)",
+    collection: "men",
+    category: "Polo Tshirts (Men)",
     images: [
       "/assets/images/sample_polo_tshirt_1794638342678.jpg",
       "/assets/images/sample_polo_back_1794643591091.jpg"
@@ -239,7 +277,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
         backImage: "/assets/images/sample_polo_back_1794643591091.jpg"
       }
     ],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
+    sizes: ["S", "M", "L", "XL", "XXL"],
     isAvailable: true,
     stockCount: 28,
     brandId: "brand_vapour",
@@ -249,7 +287,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     brandPhone: "+91 98110 54321",
     brandWhatsapp: "+91 98110 54321",
     brandLocation: "Hauz Khas, New Delhi",
-    sku: "VPR-POLO-230",
+    sku: "VPR-POLO-MEN-230",
     initialStock: 60,
     isFeatured: true,
   },
@@ -259,6 +297,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Crisp button-down casual shirt woven from a breathable cotton-linen slub blend for men. Structured collar, chest pocket, and versatile rolled cuff styling.",
     basePrice: 820,
     price: 1890,
+    collection: "men",
     category: "Shirts (Men)",
     images: [
       "/assets/images/sample_mens_shirt_1794638343165.jpg",
@@ -288,6 +327,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Sharp button-down oxford cotton shirt crafted for effortless men's smart-casual styling. Heavyweight brushed weave with pearl buttons and curved hem.",
     basePrice: 790,
     price: 1790,
+    collection: "men",
     category: "Shirts (Men)",
     images: [
       "/assets/images/sample_mens_white_shirt_1794638361265.jpg",
@@ -316,6 +356,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Lustrous emerald-teal silk-blend saree woven with intricate antique gold zari floral motifs and a rich traditional pallu border. Includes unstitched matching blouse piece.",
     basePrice: 1450,
     price: 3290,
+    collection: "women",
     category: "Sarees (Women)",
     images: [
       "/assets/images/sample_womens_saree_1794638343806.jpg",
@@ -345,6 +386,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Festive royal crimson woven silk saree featuring fine gold zari butti motifs and an heirloom temple-inspired pallu border. Drapes effortlessly in crisp pleats.",
     basePrice: 1550,
     price: 3490,
+    collection: "women",
     category: "Sarees (Women)",
     images: [
       "/assets/images/sample_crimson_saree_1794638361418.jpg",
@@ -373,6 +415,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Refined cotton-silk chididhar kurti top for women adorned with intricate gold zari paisley yoke embroidery and 3/4 embroidered cuffs. Pairs seamlessly with churidar trousers and dupatta.",
     basePrice: 890,
     price: 1990,
+    collection: "women",
     category: "Chididhar Top (Women)",
     images: [
       "/assets/images/sample_chididhar_top_1794638343542.jpg",
@@ -402,6 +445,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Breathable handloom-feel sage cotton chididhar top featuring delicate ivory chikankari floral threadwork across the mandarin placket and sleeves.",
     basePrice: 840,
     price: 1850,
+    collection: "women",
     category: "Chididhar Top (Women)",
     images: [
       "/assets/images/sample_ivory_chididhar_1794638362189.jpg",
@@ -425,12 +469,94 @@ export const DEFAULT_PRODUCTS: Product[] = [
     initialStock: 45,
   },
   {
+    id: "prod_sample_womens_oversized_tee",
+    name: "Women's Botanical Studio Oversized Tee",
+    description: "Women's relaxed 250GSM combed cotton oversized t-shirt tailored with a soft drape shoulder line and botanical graphic back print.",
+    basePrice: 630,
+    price: 1490,
+    collection: "women",
+    category: "Oversized Tshirts (Women)",
+    images: [
+      "/assets/images/sample_drop_shoulder_1794638341648.jpg",
+      "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+    ],
+    backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
+    colors: [
+      {
+        name: "Warm Oat Cream",
+        hex: "#EAE1D0",
+        image: "/assets/images/sample_drop_shoulder_1794638341648.jpg",
+        backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+      },
+      {
+        name: "Sage Leaf",
+        hex: "#7E8F7C",
+        image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
+        backImage: "/assets/images/sample_drop_shoulder_back_1794643590814.jpg"
+      }
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    isAvailable: true,
+    stockCount: 34,
+    brandId: "brand_vapour",
+    brandName: "Vapour Urban Apparel",
+    brandShopName: "Vapour Women's Studio",
+    brandContactPerson: "Rohan Kapoor",
+    brandPhone: "+91 98110 54321",
+    brandWhatsapp: "+91 98110 54321",
+    brandLocation: "Hauz Khas, New Delhi",
+    sku: "VPR-WMN-OVS-250",
+    initialStock: 60,
+    isFeatured: true,
+  },
+  {
+    id: "prod_sample_womens_polo",
+    name: "Women's Classic Knit Tipped Polo Tee",
+    description: "Women's tailored pique cotton knit polo t-shirt with structured cream-tipped collar and embroidered heritage emblem on back.",
+    basePrice: 690,
+    price: 1590,
+    collection: "women",
+    category: "Polo Tshirts (Women)",
+    images: [
+      "/assets/images/sample_polo_tshirt_1794638342678.jpg",
+      "/assets/images/sample_polo_back_1794643591091.jpg"
+    ],
+    backImage: "/assets/images/sample_polo_back_1794643591091.jpg",
+    colors: [
+      {
+        name: "Forest Pine",
+        hex: "#1F4E3D",
+        image: "/assets/images/sample_polo_tshirt_1794638342678.jpg",
+        backImage: "/assets/images/sample_polo_back_1794643591091.jpg"
+      },
+      {
+        name: "Chalk White",
+        hex: "#FAFAFA",
+        image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop",
+        backImage: "/assets/images/sample_polo_back_1794643591091.jpg"
+      }
+    ],
+    sizes: ["XS", "S", "M", "L", "XL"],
+    isAvailable: true,
+    stockCount: 26,
+    brandId: "brand_vapour",
+    brandName: "Vapour Urban Apparel",
+    brandShopName: "Vapour Women's Studio",
+    brandContactPerson: "Rohan Kapoor",
+    brandPhone: "+91 98110 54321",
+    brandWhatsapp: "+91 98110 54321",
+    brandLocation: "Hauz Khas, New Delhi",
+    sku: "VPR-WMN-POLO",
+    initialStock: 50,
+  },
+  {
     id: "prod_oversized_blank",
-    name: "The Ultimate Oversized Tee",
-    description: "Crafted from 240GSM ultra-heavyweight combed cotton. Features a perfect boxy streetwear fit, drop shoulders, and a thick ribbed neckband that won't stretch out. Pre-shrunk and soft-washed for an absolute premium handfeel.",
+    name: "Men's The Ultimate Oversized Tee",
+    description: "Crafted from 240GSM ultra-heavyweight combed cotton for men. Features a boxy streetwear fit, drop shoulders, and a thick ribbed neckband.",
     basePrice: 650, // Cost price from brand partner
     price: 1490,    // Retail selling price
-    category: "Oversized Plain",
+    collection: "men",
+    category: "Oversized Plain (Men)",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_oversized_back_1794643591280.jpg",
@@ -465,7 +591,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Built with a rugged 280GSM structured acid-washed cotton weave. Offers a classic tailored fit that holds its shape beautifully throughout the day. Finished with double-needle stitched hems for maximum durability.",
     basePrice: 750,
     price: 1790,
-    category: "Acid Wash",
+    collection: "men",
+    category: "Acid Wash (Men)",
     images: [
       "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_oversized_back_1794643591280.jpg",
@@ -500,7 +627,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "A streetwear staple featuring a clean typography mark on the chest and an architectural blueprint illustration screen-printed across the back using non-toxic water-based ink. 240GSM boxy fit.",
     basePrice: 850,
     price: 1990,
-    category: "Oversized Printed",
+    collection: "men",
+    category: "Oversized Printed (Men)",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_oversized_back_1794643591280.jpg",
@@ -531,7 +659,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Lightweight 200GSM honeycomb jersey knit cotton blend. Highly breathable, soft-washed, and featuring a relaxed casual drape. The absolute perfect fit for warm climates and everyday streetwear.",
     basePrice: 480,
     price: 1190,
-    category: "Jersey",
+    collection: "men",
+    category: "Jersey (Men)",
     images: [
       "https://images.unsplash.com/photo-1562157873-818bc0726f68?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
@@ -564,7 +693,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Custom hand-dyed acid wash 260GSM combed cotton. Each shirt exhibits a unique vintage fade finish with distressed ribbed collar.",
     basePrice: 720,
     price: 1690,
-    category: "Acid Wash",
+    collection: "men",
+    category: "Acid Wash (Men)",
     images: [
       "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_oversized_back_1794643591280.jpg",
@@ -594,7 +724,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: "Ultra-clean minimalist 250GSM boxy plain tee with drop shoulders and reinforced crew neckline. Unbranded blank silhouette.",
     basePrice: 620,
     price: 1390,
-    category: "Oversized Plain",
+    collection: "men",
+    category: "Oversized Plain (Men)",
     images: [
       "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop",
       "/assets/images/sample_drop_shoulder_back_1794643590814.jpg",
@@ -622,16 +753,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
 
 export const CATEGORIES = [
   "All",
-  "Oversized Tshirts (Men & Women)",
-  "Drop Shoulder (Men & Women)",
-  "Polo Tshirts (Men & Women)",
-  "Shirts (Men)",
-  "Sarees (Women)",
-  "Chididhar Top (Women)",
-  "Oversized Printed",
-  "Oversized Plain",
-  "Jersey",
-  "Acid Wash",
+  ...MEN_CATEGORIES,
+  ...WOMEN_CATEGORIES,
 ];
 
 export const DEFAULT_CALCULATOR: ResellerCalculator = {

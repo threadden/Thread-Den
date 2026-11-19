@@ -15,7 +15,7 @@ import {
   Zap
 } from "lucide-react";
 import { Product } from "../types";
-import { getProductColorImage, getProductBackImage } from "../data";
+import { getProductColorImage, getProductBackImage, inferProductCollection } from "../data";
 import PriceHistoryChart from "./PriceHistoryChart";
 
 interface ProductDetailModalProps {
@@ -73,8 +73,6 @@ export default function ProductDetailModal({
   onSimulatePriceDrop,
   onVisualizeWithAiStylist,
 }: ProductDetailModalProps) {
-  if (!product) return null;
-
   // Local state for customized choices
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<{ name: string; hex: string }>({ name: "", hex: "" });
@@ -110,6 +108,9 @@ export default function ProductDetailModal({
       setIsSizeChartOpen(false);
     }
   }, [product]);
+
+  if (!product) return null;
+  const collectionGroup = inferProductCollection(product);
 
   const handleQuantityChange = (val: number) => {
     if (val < 1) return;
@@ -198,9 +199,20 @@ export default function ProductDetailModal({
               : "bg-zinc-50 border-zinc-200/80"
           }`}
         >
-          {/* Category Tag Top Left */}
-          <div className="absolute top-4 left-4 bg-zinc-950/90 text-white font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md font-bold border border-zinc-800 z-10">
-            {product.category}
+          {/* Collection + Category Tag Top Left */}
+          <div className="absolute top-4 left-4 flex items-center gap-1.5 z-10 flex-wrap">
+            <span
+              className={`font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md font-black border ${
+                collectionGroup === "women"
+                  ? "bg-rose-500 text-white border-rose-400"
+                  : "bg-sky-500 text-zinc-950 border-sky-400"
+              }`}
+            >
+              {collectionGroup === "women" ? "Women's" : "Men's"}
+            </span>
+            <span className="bg-zinc-950/90 text-white font-mono text-[10px] uppercase tracking-wider px-2.5 py-1 rounded-md font-bold border border-zinc-800">
+              {product.category}
+            </span>
           </div>
 
           {/* Framed Image Container: 75% to 80% container scale */}
@@ -392,7 +404,16 @@ export default function ProductDetailModal({
           <div className="space-y-6">
             {/* 1. PRODUCT NAME & PRICE */}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  className={`text-[10px] font-mono uppercase tracking-widest font-black px-2 py-0.5 rounded border ${
+                    collectionGroup === "women"
+                      ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                      : "bg-sky-500/15 text-sky-400 border-sky-500/30"
+                  }`}
+                >
+                  {collectionGroup === "women" ? "Women's Collection" : "Men's Collection"}
+                </span>
                 <span className="text-[10px] font-mono uppercase tracking-widest font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   {product.category}
                 </span>

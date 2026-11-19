@@ -370,6 +370,8 @@ export default function AiStylistModal({
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+  const creationStepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Zoom and cart feedback
   const [zoomLevel, setZoomLevel] = useState<number>(1);
@@ -405,7 +407,7 @@ export default function AiStylistModal({
   const [stylistAnswer, setStylistAnswer] = useState("");
   const [isAnswering, setIsAnswering] = useState(false);
 
-  // Reset or switch view when modal opens
+  // Reset or switch view when modal opens, and stop camera/timers on close or unmount
   useEffect(() => {
     if (isOpen) {
       if (!miniature) {
@@ -415,8 +417,27 @@ export default function AiStylistModal({
       }
       setAddedSuccess(false);
       setStylistAnswer("");
+    } else {
+      handleStopCamera();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, miniature]);
+
+  useEffect(() => {
+    return () => {
+      if (creationStepIntervalRef.current) {
+        clearInterval(creationStepIntervalRef.current);
+        creationStepIntervalRef.current = null;
+      }
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        cameraStreamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, []);
 
   // Dress the miniature (AI try-on) whenever product / colour / size changes.
   // Debounced 600ms so rapid clicks don't fire multiple parallel generations.
@@ -635,9 +656,13 @@ export default function AiStylistModal({
   const handleStartCamera = async () => {
     try {
       setCreationError("");
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 640 } },
       });
+      cameraStreamRef.current = stream;
       setCameraStream(stream);
       setIsCameraActive(true);
       if (videoRef.current) {
@@ -682,9 +707,14 @@ export default function AiStylistModal({
   };
 
   const handleStopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
+    const activeStream = cameraStreamRef.current || cameraStream;
+    if (activeStream) {
+      activeStream.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
       setCameraStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
   };
@@ -717,6 +747,9 @@ export default function AiStylistModal({
       "Placing it on the showroom stand...",
     ];
 
+    if (creationStepIntervalRef.current) {
+      clearInterval(creationStepIntervalRef.current);
+    }
     let currentStep = 0;
     const stepInterval = setInterval(() => {
       currentStep++;
@@ -724,6 +757,7 @@ export default function AiStylistModal({
         setCreationStepIndex(currentStep);
       }
     }, 3500);
+    creationStepIntervalRef.current = stepInterval;
 
     try {
       // Ensure photo payload is safely compressed
@@ -745,6 +779,9 @@ export default function AiStylistModal({
 
       const data = await response.json().catch(() => ({}));
       clearInterval(stepInterval);
+      if (creationStepIntervalRef.current === stepInterval) {
+        creationStepIntervalRef.current = null;
+      }
       if (!response.ok || !data.miniature) throw new Error(data.error || "Generation error");
 
       // Compress generated miniature to max 640px JPEG for localStorage storage

@@ -23,7 +23,15 @@ import {
   Legend
 } from "recharts";
 import { Product, Order, OrderDispatchStatus, ResellerCalculator, BrandPartner, OrderItem, CustomerReview, UserProfile } from "../types";
-import { CATEGORIES, getProductColorImage, getProductBackImage } from "../data";
+import {
+  CATEGORIES,
+  MEN_CATEGORIES,
+  WOMEN_CATEGORIES,
+  ProductCollection,
+  inferProductCollection,
+  getProductColorImage,
+  getProductBackImage,
+} from "../data";
 import { normalizePhone } from "../firebase";
 import OrderHistory from "./OrderHistory";
 import { generateOrderPDF } from "../utils/generateOrderPDF";
@@ -258,6 +266,7 @@ export default function MerchantPortal({
   // Catalogue sub-views: "articles" (Unified Catalogue Matrix) or "brands" (Grouped by Partner Shop)
   const [catalogueView, setCatalogueView] = useState<"articles" | "shops">("articles");
   const [catalogueSearch, setCatalogueSearch] = useState("");
+  const [catalogueCollectionFilter, setCatalogueCollectionFilter] = useState<"all" | ProductCollection>("all");
   const [catalogueCategoryFilter, setCatalogueCategoryFilter] = useState("All");
   const [catalogueBrandFilter, setCatalogueBrandFilter] = useState("All");
 
@@ -305,7 +314,8 @@ export default function MerchantPortal({
 
   // Article Specifications
   const [formArtName, setFormArtName] = useState("");
-  const [formArtCategory, setFormArtCategory] = useState("Oversized Tshirts (Men & Women)");
+  const [formArtCollection, setFormArtCollection] = useState<ProductCollection>("men");
+  const [formArtCategory, setFormArtCategory] = useState(MEN_CATEGORIES[0]);
   const [formArtSku, setFormArtSku] = useState("");
   const [formArtDesc, setFormArtDesc] = useState("");
   const [formArtImage, setFormArtImage] = useState("https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800");
@@ -432,6 +442,8 @@ Please confirm that you have this size and color ready for handover. Thank you!`
       setFormBrandLeadTime(matchedBrand?.leadTimeDays || 2);
 
       setFormArtName(productToEdit.name);
+      const inferredCol = inferProductCollection(productToEdit);
+      setFormArtCollection(inferredCol);
       setFormArtCategory(productToEdit.category);
       setFormArtSku(productToEdit.sku || "");
       setFormArtDesc(productToEdit.description);
@@ -457,7 +469,8 @@ Please confirm that you have this size and color ready for handover. Thank you!`
       setFormBrandLeadTime(defaultBrand?.leadTimeDays || 2);
 
       setFormArtName("");
-      setFormArtCategory("Oversized Tshirts (Men & Women)");
+      setFormArtCollection("men");
+      setFormArtCategory(MEN_CATEGORIES[0]);
       setFormArtSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`);
       setFormArtDesc("");
       setFormArtImage("https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=800");
@@ -613,6 +626,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
           return {
             ...baseRest,
             name: formArtName.trim(),
+            collection: formArtCollection,
             category: formArtCategory,
             sku: formArtSku.trim() || p.sku,
             description: formArtDesc.trim(),
@@ -656,6 +670,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
       const newProduct: Product = {
         id: `prod_${Date.now()}`,
         name: formArtName.trim(),
+        collection: formArtCollection,
         category: formArtCategory,
         sku: formArtSku.trim() || `SKU-${Date.now().toString().slice(-4)}`,
         description: formArtDesc.trim(),
@@ -710,12 +725,15 @@ Please confirm that you have this size and color ready for handover. Thank you!`
         (p.brandLocation && p.brandLocation.toLowerCase().includes(search)) ||
         (p.brandContactPerson && p.brandContactPerson.toLowerCase().includes(search));
 
+      const matchesCol =
+        catalogueCollectionFilter === "all" ||
+        inferProductCollection(p) === catalogueCollectionFilter;
       const matchesCat = catalogueCategoryFilter === "All" || p.category === catalogueCategoryFilter;
       const matchesBrand = catalogueBrandFilter === "All" || p.brandId === catalogueBrandFilter;
 
-      return matchesSearch && matchesCat && matchesBrand;
+      return matchesSearch && matchesCol && matchesCat && matchesBrand;
     });
-  }, [products, catalogueSearch, catalogueCategoryFilter, catalogueBrandFilter]);
+  }, [products, catalogueSearch, catalogueCollectionFilter, catalogueCategoryFilter, catalogueBrandFilter]);
 
   // Orders Filtered
   const filteredCustomerOrders = useMemo(() => {
@@ -1132,6 +1150,35 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                 </button>
               </div>
 
+              {/* Collection Filter (Men's vs Women's) */}
+              <div className="inline-flex rounded-xl p-1 bg-zinc-950/60 border border-zinc-800">
+                {([
+                  { id: "all", label: "All" },
+                  { id: "men", label: "Men's" },
+                  { id: "women", label: "Women's" },
+                ] as const).map((colOpt) => (
+                  <button
+                    key={colOpt.id}
+                    type="button"
+                    onClick={() => {
+                      setCatalogueCollectionFilter(colOpt.id);
+                      setCatalogueCategoryFilter("All");
+                    }}
+                    className={`px-2.5 py-1 text-xs font-mono rounded-lg transition-all cursor-pointer ${
+                      catalogueCollectionFilter === colOpt.id
+                        ? colOpt.id === "women"
+                          ? "bg-rose-500 text-white font-bold"
+                          : colOpt.id === "men"
+                          ? "bg-sky-500 text-zinc-950 font-bold"
+                          : "bg-emerald-500 text-zinc-950 font-bold"
+                        : "text-zinc-400 hover:text-white"
+                    }`}
+                  >
+                    {colOpt.label}
+                  </button>
+                ))}
+              </div>
+
               {/* Category Filter */}
               <select
                 value={catalogueCategoryFilter}
@@ -1139,7 +1186,12 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                 className="px-3 py-1.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-mono text-white outline-none focus:border-amber-400 cursor-pointer"
               >
                 <option value="All">All Categories</option>
-                {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                {(catalogueCollectionFilter === "men"
+                  ? MEN_CATEGORIES
+                  : catalogueCollectionFilter === "women"
+                  ? WOMEN_CATEGORIES
+                  : CATEGORIES.filter((c) => c !== "All")
+                ).map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
@@ -1220,6 +1272,15 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                                 referrerPolicy="no-referrer"
                               />
                               <div className="absolute top-3 left-3 flex gap-1.5 flex-wrap">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black ${
+                                    inferProductCollection(p) === "women"
+                                      ? "bg-rose-500 text-white"
+                                      : "bg-sky-500 text-zinc-950"
+                                  }`}
+                                >
+                                  {inferProductCollection(p) === "women" ? "Women's" : "Men's"}
+                                </span>
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-950/80 text-white backdrop-blur-md border border-zinc-800">
                                   {p.category}
                                 </span>
@@ -2900,7 +2961,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                   Article Specifications
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block uppercase text-zinc-400 font-bold mb-1">Article Title *</label>
                     <input
@@ -2908,9 +2969,47 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                       required
                       value={formArtName}
                       onChange={(e) => setFormArtName(e.target.value)}
-                      placeholder="e.g. Heavyweight Mineral Acid Wash Boxy Tee"
+                      placeholder="e.g. Heavyweight Acid Wash Tee"
                       className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-amber-400"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block uppercase text-zinc-400 font-bold mb-1">Collection *</label>
+                    <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-950 border border-zinc-800 rounded-xl">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormArtCollection("men");
+                          if (!MEN_CATEGORIES.includes(formArtCategory)) {
+                            setFormArtCategory(MEN_CATEGORIES[0]);
+                          }
+                        }}
+                        className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer transition-all ${
+                          formArtCollection === "men"
+                            ? "bg-sky-500 text-zinc-950"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        Men&apos;s
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormArtCollection("women");
+                          if (!WOMEN_CATEGORIES.includes(formArtCategory)) {
+                            setFormArtCategory(WOMEN_CATEGORIES[0]);
+                          }
+                        }}
+                        className={`py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer transition-all ${
+                          formArtCollection === "women"
+                            ? "bg-rose-500 text-white"
+                            : "text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        Women&apos;s
+                      </button>
+                    </div>
                   </div>
 
                   <div>
@@ -2920,7 +3019,7 @@ Please confirm that you have this size and color ready for handover. Thank you!`
                       onChange={(e) => setFormArtCategory(e.target.value)}
                       className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-white outline-none focus:border-amber-400 cursor-pointer"
                     >
-                      {CATEGORIES.filter((c) => c !== "All").map((cat) => (
+                      {(formArtCollection === "women" ? WOMEN_CATEGORIES : MEN_CATEGORIES).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>

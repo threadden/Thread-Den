@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Ban, Eye, Heart, Flame, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import { Product } from "../types";
-import { getProductColorImage, getProductBackImage } from "../data";
+import { getProductColorImage, getProductBackImage, inferProductCollection } from "../data";
 
 interface ProductCardProps {
   product: Product;
@@ -38,6 +38,7 @@ export default function ProductCard({
   const hasBackView = Boolean(backImage && backImage !== frontImage);
   const currentView: "front" | "back" = activeView === "back" && hasBackView ? "back" : "front";
   const activeImage = currentView === "back" ? backImage : frontImage;
+  const collectionGroup = inferProductCollection(product);
 
   return (
     <motion.div
@@ -63,13 +64,24 @@ export default function ProductCard({
           referrerPolicy="no-referrer"
         />
 
-        {/* Category Tag */}
-        <div className={`absolute top-3 left-3 backdrop-blur-xs text-[10px] font-mono font-bold tracking-wider uppercase px-2.5 py-1 rounded-lg border shadow-3xs ${
-          isDark 
-            ? "bg-zinc-950/95 text-zinc-300 border-zinc-800" 
-            : "bg-white/95 text-zinc-800 border-zinc-100 shadow-xs"
-        }`}>
-          {product.category}
+        {/* Collection + Category Tag */}
+        <div className="absolute top-3 left-3 flex flex-col items-start gap-1 max-w-[75%]">
+          <span
+            className={`text-[9px] font-mono font-black tracking-wider uppercase px-2 py-0.5 rounded-md border shadow-3xs ${
+              collectionGroup === "women"
+                ? "bg-rose-500/90 text-white border-rose-400/60"
+                : "bg-sky-500/90 text-zinc-950 border-sky-400/60"
+            }`}
+          >
+            {collectionGroup === "women" ? "Women's" : "Men's"}
+          </span>
+          <div className={`backdrop-blur-xs text-[10px] font-mono font-bold tracking-wider uppercase px-2.5 py-1 rounded-lg border shadow-3xs truncate max-w-full ${
+            isDark 
+              ? "bg-zinc-950/95 text-zinc-300 border-zinc-800" 
+              : "bg-white/95 text-zinc-800 border-zinc-100 shadow-xs"
+          }`}>
+            {product.category}
+          </div>
         </div>
 
         {/* Wishlist Heart Button */}

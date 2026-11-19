@@ -129,7 +129,7 @@ export default function Header({
                   : "bg-white border-zinc-200 text-zinc-700 hover:text-zinc-950 shadow-xs"
               }`}
               id="user-account-trigger"
-              title={currentUser ? "User Profile & Account Settings" : "Sign In or Register"}
+              title={currentUser ? "User Profile & Account Settings" : "Customer Login or Create Account"}
             >
               {currentUser ? (
                 <>
@@ -148,7 +148,7 @@ export default function Header({
               ) : (
                 <>
                   <User className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span className="font-bold text-xs whitespace-nowrap">Login / Sign Up</span>
+                  <span className="font-bold text-xs whitespace-nowrap">Login</span>
                 </>
               )}
             </motion.button>

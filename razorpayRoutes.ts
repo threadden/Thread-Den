@@ -126,10 +126,40 @@ interface PendingGatewaySession {
   verificationSource?: string;
   confirmedAt?: string;
   baseUrl?: string;
-  dispatchResult?: OrderDispatchResponse & { generatedBillText: string };
+  confirmedAtMs?: number;
+  dispatchResult?: OrderDispatchResponse;
 }
 
+const MAX_PENDING_SESSIONS = 400;
+const UNCONFIRMED_SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+const CONFIRMED_SESSION_TTL_MS = 30 * 60 * 1000;
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const RAZORPAY_FETCH_TIMEOUT_MS = 15_000;
+
 const pendingSessions = new Map<string, PendingGatewaySession>();
+
+function prunePendingSessions(now = Date.now()): void {
+  for (const [key, sess] of pendingSessions.entries()) {
+    const age = sess.gatewayConfirmed
+      ? now - (sess.confirmedAtMs || sess.createdAtMs)
+      : now - sess.createdAtMs;
+    const ttl = sess.gatewayConfirmed
+      ? CONFIRMED_SESSION_TTL_MS
+      : UNCONFIRMED_SESSION_TTL_MS;
+    if (age > ttl) {
+      pendingSessions.delete(key);
+    }
+  }
+  while (pendingSessions.size > MAX_PENDING_SESSIONS) {
+    const oldestKey = pendingSessions.keys().next().value;
+    if (!oldestKey) break;
+    pendingSessions.delete(oldestKey);
+  }
+}
+
+setInterval(() => {
+  prunePendingSessions();
+}, SESSION_CLEANUP_INTERVAL_MS).unref();
 
 async function verifyOrCapturePaymentWithRazorpayApi(params: {
   paymentId: string;
@@ -147,6 +177,7 @@ async function verifyOrCapturePaymentWithRazorpayApi(params: {
       headers: {
         Authorization: `Basic ${authToken}`,
       },
+      signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
     }
   );
 
@@ -187,6 +218,7 @@ async function verifyOrCapturePaymentWithRazorpayApi(params: {
           amount: paymentData.amount,
           currency: paymentData.currency || "INR",
         }),
+        signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
       }
     );
     const capData = await capResp.json().catch(() => ({}));
@@ -217,6 +249,7 @@ async function finalizeSessionAndDispatch(
   session.razorpaySignature = signature;
   session.verificationSource = verificationSource;
   session.confirmedAt = session.confirmedAt || new Date().toISOString();
+  session.confirmedAtMs = session.confirmedAtMs || Date.now();
 
   if (!session.dispatchResult && session.items.length > 0 && session.customer.name) {
     const currentDate = new Date().toLocaleDateString("en-IN", {
@@ -228,7 +261,7 @@ async function finalizeSessionAndDispatch(
       second: "2-digit",
     });
 
-    session.dispatchResult = await dispatchOrderNotificationsToUser({
+    const fullDispatch = await dispatchOrderNotificationsToUser({
       order: {
         id: session.localOrderId,
         customerName: session.customer.name,
@@ -261,6 +294,10 @@ async function finalizeSessionAndDispatch(
       brandName: session.brandName,
       baseUrl: session.baseUrl,
     });
+
+    const { generatedBillText: _omitText, whatsappText: _omitWa, ...compactDispatch } = fullDispatch;
+    session.dispatchResult = compactDispatch;
+    session.items = [];
   }
 
   return session;
@@ -369,6 +406,7 @@ export function registerRazorpayRoutes(app: express.Application) {
               itemsCount: String(itemsCount),
             },
           }),
+          signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
         });
 
         const rzpData = await rzpResp.json().catch(() => ({}));
@@ -420,6 +458,7 @@ export function registerRazorpayRoutes(app: express.Application) {
               "Content-Type": "application/json",
             },
             body: JSON.stringify(linkPayload),
+            signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
           });
           const linkData = await linkResp.json().catch(() => ({}));
           if (linkResp.ok && linkData?.id && linkData?.short_url) {
@@ -449,6 +488,7 @@ export function registerRazorpayRoutes(app: express.Application) {
         }).catch(() => undefined);
       }
 
+      prunePendingSessions();
       pendingSessions.set(orderId, {
         orderId,
         localOrderId,
@@ -466,7 +506,7 @@ export function registerRazorpayRoutes(app: express.Application) {
           phone: customer?.phone || "",
           address: customer?.address,
         },
-        items: Array.isArray(items) ? items : [],
+        items: Array.isArray(items) ? items.slice(0, 50) : [],
         razorpayMeUrl,
         paymentLinkId,
         paymentLinkUrl,
@@ -523,7 +563,10 @@ export function registerRazorpayRoutes(app: express.Application) {
           if (orderId.startsWith("order_") && !orderId.startsWith("order_rzp_")) {
             const ordPayResp = await fetch(
               `https://api.razorpay.com/v1/orders/${encodeURIComponent(orderId)}/payments`,
-              { headers: { Authorization: `Basic ${authToken}` } }
+              {
+                headers: { Authorization: `Basic ${authToken}` },
+                signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
+              }
             ).catch(() => null);
             const ordPayData = ordPayResp ? await ordPayResp.json().catch(() => ({})) : {};
             const captured = Array.isArray(ordPayData?.items)
@@ -547,7 +590,10 @@ export function registerRazorpayRoutes(app: express.Application) {
           if (!session.gatewayConfirmed && session.paymentLinkId) {
             const plResp = await fetch(
               `https://api.razorpay.com/v1/payment_links/${encodeURIComponent(session.paymentLinkId)}`,
-              { headers: { Authorization: `Basic ${authToken}` } }
+              {
+                headers: { Authorization: `Basic ${authToken}` },
+                signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
+              }
             ).catch(() => null);
             const plData = plResp ? await plResp.json().catch(() => ({})) : {};
             if (plData?.status === "paid") {
@@ -570,7 +616,10 @@ export function registerRazorpayRoutes(app: express.Application) {
           if (!session.gatewayConfirmed) {
             const recentResp = await fetch(
               "https://api.razorpay.com/v1/payments?count=15",
-              { headers: { Authorization: `Basic ${authToken}` } }
+              {
+                headers: { Authorization: `Basic ${authToken}` },
+                signal: AbortSignal.timeout(RAZORPAY_FETCH_TIMEOUT_MS),
+              }
             ).catch(() => null);
             const recentData = recentResp ? await recentResp.json().catch(() => ({})) : {};
             const custEmail = session.customer.email.trim().toLowerCase();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   Trash2,
@@ -273,22 +273,42 @@ export default function CartSidebar({
     setTimeout(() => setCopiedAmount(false), 1800);
   };
 
+  const paymentAudioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (paymentAudioCtxRef.current && paymentAudioCtxRef.current.state !== "closed") {
+        paymentAudioCtxRef.current.close().catch(() => {});
+        paymentAudioCtxRef.current = null;
+      }
+    };
+  }, []);
+
   const playPaymentTone = (freq: number, duration: number, type: OscillatorType = "sine") => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, ctx.currentTime);
-        gain.gain.setValueAtTime(0.06, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + duration);
+      if (!AudioCtx) return;
+      if (!paymentAudioCtxRef.current || paymentAudioCtxRef.current.state === "closed") {
+        paymentAudioCtxRef.current = new AudioCtx();
       }
+      const ctx = paymentAudioCtxRef.current;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+      osc.onended = () => {
+        osc.disconnect();
+        gain.disconnect();
+      };
     } catch {
       // Ignore audio errors
     }
@@ -302,7 +322,7 @@ export default function CartSidebar({
 
     if (!currentUser) {
       if (onOpenAuthModal) {
-        onOpenAuthModal("signup");
+        onOpenAuthModal("signin");
       } else if (onOpenAccountModal) {
         onOpenAccountModal();
       }
@@ -2529,31 +2549,30 @@ export default function CartSidebar({
                       <div className="flex items-center gap-2">
                         <Lock className="w-4 h-4 text-emerald-400 shrink-0" />
                         <span className="font-display font-bold text-xs uppercase tracking-wider text-emerald-400">
-                          Sign In or Sign Up to Buy Now
+                          Customer Account Required
                         </span>
                       </div>
                     </div>
                     <p className="text-[11px] leading-relaxed opacity-90">
-                      Sign in so we can record your delivery details, process COD / Razorpay UPI /
-                      Card billing, and send your sample bill.
+                      Log in with your Phone Number or Email ID, or create an account so we can record your delivery details and send your PDF bill.
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => {
-                          if (onOpenAuthModal) onOpenAuthModal("signup");
+                          if (onOpenAuthModal) onOpenAuthModal("signin");
                           else if (onOpenAccountModal) onOpenAccountModal();
                         }}
                         className="py-2 px-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-xl font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-                        id="cart-signup-btn"
+                        id="cart-signin-btn"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Sign Up</span>
+                        <User className="w-3.5 h-3.5" />
+                        <span>Login</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => {
-                          if (onOpenAuthModal) onOpenAuthModal("signin");
+                          if (onOpenAuthModal) onOpenAuthModal("signup");
                           else if (onOpenAccountModal) onOpenAccountModal();
                         }}
                         className={`py-2 px-3 rounded-xl font-display font-bold text-xs flex items-center justify-center gap-1.5 border cursor-pointer ${
@@ -2561,10 +2580,10 @@ export default function CartSidebar({
                             ? "bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-700"
                             : "bg-white hover:bg-zinc-50 text-zinc-900 border-zinc-300"
                         }`}
-                        id="cart-signin-btn"
+                        id="cart-signup-btn"
                       >
-                        <User className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Sign In</span>
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Create Account</span>
                       </button>
                     </div>
                   </div>
@@ -2785,7 +2804,7 @@ export default function CartSidebar({
               <button
                 type="button"
                 onClick={() => {
-                  if (onOpenAuthModal) onOpenAuthModal("signup");
+                  if (onOpenAuthModal) onOpenAuthModal("signin");
                   else if (onOpenAccountModal) onOpenAccountModal();
                 }}
                 className={`w-full py-4 font-display font-bold text-sm rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer ${
@@ -2796,7 +2815,7 @@ export default function CartSidebar({
                 id="submit-order-button"
               >
                 <Lock className="w-4 h-4 shrink-0" />
-                <span>Login / Sign Up to Buy Now</span>
+                <span>Login with Phone or Email to Buy Now</span>
                 <ArrowRight className="w-4 h-4 shrink-0" />
               </button>
             ) : (

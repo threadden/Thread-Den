@@ -70,6 +70,68 @@ function hasSmtpConfig(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
+const EXTERNAL_FETCH_TIMEOUT_MS = 15_000;
+const MAX_CLIENT_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_CLIENT_PDF_BASE64_LEN = Math.ceil((MAX_CLIENT_PDF_BYTES * 4) / 3) + 64;
+
+type PooledTransporter = ReturnType<typeof nodemailer.createTransport>;
+let cachedSmtpKey = "";
+let cachedSmtpTransporter: PooledTransporter | null = null;
+
+function getPooledSmtpTransporter(): PooledTransporter {
+  const host = process.env.SMTP_HOST || "";
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure =
+    process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE === "true"
+      : port === 465;
+  const user = process.env.SMTP_USER || "";
+  const pass = process.env.SMTP_PASS || "";
+  const nextKey = `${host}|${port}|${secure}|${user}|${pass}`;
+
+  if (cachedSmtpTransporter && cachedSmtpKey === nextKey) {
+    return cachedSmtpTransporter;
+  }
+
+  if (cachedSmtpTransporter) {
+    try {
+      cachedSmtpTransporter.close();
+    } catch {
+      // Ignore close failures on stale transporter
+    }
+  }
+
+  cachedSmtpTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    pool: true,
+    maxConnections: 3,
+    maxMessages: 100,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+    auth: { user, pass },
+  });
+  cachedSmtpKey = nextKey;
+  return cachedSmtpTransporter;
+}
+
+function decodeSafeClientPdf(clientPdfBase64?: string): Buffer | undefined {
+  if (typeof clientPdfBase64 !== "string") return undefined;
+  const trimmed = clientPdfBase64.trim();
+  if (!trimmed) return undefined;
+  const cleanBase64 = trimmed.replace(/^data:application\/pdf[^,]*,/, "");
+  if (!cleanBase64 || cleanBase64.length > MAX_CLIENT_PDF_BASE64_LEN) {
+    return undefined;
+  }
+  const buf = Buffer.from(cleanBase64, "base64");
+  if (buf.byteLength === 0 || buf.byteLength > MAX_CLIENT_PDF_BYTES) {
+    return undefined;
+  }
+  return buf;
+}
+
 function hasResendConfig(): boolean {
   return Boolean(process.env.RESEND_API_KEY);
 }
@@ -457,24 +519,10 @@ async function sendEmailViaProvider(params: {
     };
   }
 
-  // Option 1: Nodemailer SMTP with real PDF attachment
+  // Option 1: Pooled Nodemailer SMTP with real PDF attachment
   if (hasSmtpConfig()) {
     try {
-      const port = Number(process.env.SMTP_PORT || 465);
-      const secure =
-        process.env.SMTP_SECURE !== undefined
-          ? process.env.SMTP_SECURE === "true"
-          : port === 465;
-
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port,
-        secure,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
+      const transporter = getPooledSmtpTransporter();
 
       const fromAddress =
         process.env.SMTP_FROM || `"${brandName}" <${process.env.SMTP_USER}>`;
@@ -542,6 +590,7 @@ async function sendEmailViaProvider(params: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(bodyPayload),
+        signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
       });
 
       const data = await resp.json().catch(() => ({}));
@@ -615,6 +664,7 @@ async function sendWhatsAppViaProvider(params: {
             type: "text",
             text: { preview_url: Boolean(pdfUrl), body: messageText },
           }),
+          signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
         }
       );
 
@@ -646,6 +696,7 @@ async function sendWhatsAppViaProvider(params: {
                 Authorization: `Bearer ${token}`,
               },
               body: formData,
+              signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
             }
           );
 
@@ -668,6 +719,7 @@ async function sendWhatsAppViaProvider(params: {
                   caption: `Official PDF Tax Invoice (${pdfFilename})`,
                 },
               }),
+              signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
             });
           }
         } catch {
@@ -721,6 +773,7 @@ async function sendWhatsAppViaProvider(params: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: form.toString(),
+          signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
         }
       );
 
@@ -794,6 +847,7 @@ async function sendSmsViaProvider(
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: form.toString(),
+          signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
         }
       );
 
@@ -836,6 +890,7 @@ async function sendSmsViaProvider(
           flash: 0,
           numbers: localTen,
         }),
+        signal: AbortSignal.timeout(EXTERNAL_FETCH_TIMEOUT_MS),
       });
 
       const data = await resp.json().catch(() => ({}));
@@ -893,11 +948,7 @@ export async function dispatchOrderNotificationsToUser(params: {
   const billNo = order.billNumber || `BILL-${order.id}`;
   const isCod = order.paymentChannel === "cod" || order.paymentStatus === "unpaid";
 
-  const cleanBase64 =
-    typeof clientPdfBase64 === "string" && clientPdfBase64.trim()
-      ? clientPdfBase64.trim().replace(/^data:application\/pdf[^,]*,/, "")
-      : "";
-  const clientBuffer = cleanBase64 ? Buffer.from(cleanBase64, "base64") : undefined;
+  const clientBuffer = decodeSafeClientPdf(clientPdfBase64);
 
   // 1. Store jsPDF invoice buffer (when supplied by client generateOrderPDF) or generate via PDFKit
   const generatedPdf = await generateAndStorePdfBill({
@@ -1153,11 +1204,7 @@ export function registerNotificationRoutes(app: express.Application) {
       const now = new Date().toISOString();
       const billNo = order.billNumber || `BILL-${order.id}`;
       const baseUrl = getPublicBaseUrl(req);
-      const cleanBase64 =
-        typeof clientPdfBase64 === "string" && clientPdfBase64.trim()
-          ? clientPdfBase64.trim().replace(/^data:application\/pdf[^,]*,/, "")
-          : "";
-      const clientBuffer = cleanBase64 ? Buffer.from(cleanBase64, "base64") : undefined;
+      const clientBuffer = decodeSafeClientPdf(clientPdfBase64);
 
       const generatedPdf = await generateAndStorePdfBill({
         order: { ...order, billNumber: billNo },
