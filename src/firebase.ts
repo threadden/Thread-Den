@@ -510,6 +510,10 @@ export async function seedProductsIfEmpty(initialProducts: Product[]): Promise<b
             : defaultProd.images;
         patch.colors = defaultProd.colors;
       }
+      if (defaultProd.id === "prod_daily_slub" && existing.price === 1190) {
+        patch.price = defaultProd.price;
+        patch.basePrice = defaultProd.basePrice;
+      }
 
       if (Object.keys(patch).length > 0) {
         patch.updatedAt = new Date().toISOString();

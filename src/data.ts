@@ -657,8 +657,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     id: "prod_daily_slub",
     name: "Aero Mesh Breathable Jersey Tee",
     description: "Lightweight 200GSM honeycomb jersey knit cotton blend. Highly breathable, soft-washed, and featuring a relaxed casual drape. The absolute perfect fit for warm climates and everyday streetwear.",
-    basePrice: 480,
-    price: 1190,
+    basePrice: 1,
+    price: 1,
     collection: "men",
     category: "Jersey (Men)",
     images: [

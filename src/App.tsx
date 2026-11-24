@@ -275,9 +275,15 @@ export default function App() {
         const normalizedCollection = p.collection || def?.collection || inferProductCollection(p);
         const normalizedCategory =
           def && p.category?.includes("Men & Women") ? def.category : p.category;
+        const syncedPrice =
+          def && p.id === "prod_daily_slub" && p.price === 1190 ? def.price : p.price;
+        const syncedBasePrice =
+          def && p.id === "prod_daily_slub" && p.price === 1190 ? def.basePrice : p.basePrice;
         if (def?.backImage && !p.backImage) {
           return {
             ...p,
+            price: syncedPrice,
+            basePrice: syncedBasePrice,
             category: normalizedCategory,
             collection: normalizedCollection,
             backImage: def.backImage,
@@ -287,6 +293,8 @@ export default function App() {
         }
         return {
           ...p,
+          price: syncedPrice,
+          basePrice: syncedBasePrice,
           category: normalizedCategory,
           collection: normalizedCollection,
         };
