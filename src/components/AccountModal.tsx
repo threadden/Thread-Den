@@ -42,6 +42,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { UserProfile, SavedAddress, BankDetails, Order, Product } from "../types";
 import AuthModal from "./AuthModal";
+import { downloadOrderPDF, generateOrderPDF } from "../utils/generateOrderPDF";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -212,6 +213,62 @@ Thank you for shopping with Thread Den Streetwear!
 
   // Selected Order for Receipt modal view inside user settings
   const [selectedOrderReceipt, setSelectedOrderReceipt] = useState<Order | null>(null);
+  const [selectedOrderPdfUrl, setSelectedOrderPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedOrderReceipt) {
+      setSelectedOrderPdfUrl(null);
+      return;
+    }
+    try {
+      const artifact = generateOrderPDF(selectedOrderReceipt, {
+        brandName,
+        currencySymbol,
+      });
+      const blobUrl = URL.createObjectURL(artifact.blob);
+      setSelectedOrderPdfUrl(blobUrl);
+      return () => {
+        URL.revokeObjectURL(blobUrl);
+      };
+    } catch (err) {
+      console.warn("Unable to prebuild receipt PDF preview:", err);
+      setSelectedOrderPdfUrl(null);
+    }
+  }, [selectedOrderReceipt, brandName, currencySymbol]);
+
+  const handleDownloadOrderPdf = async (order: Order) => {
+    try {
+      downloadOrderPDF(order, { brandName, currencySymbol });
+    } catch (err) {
+      console.warn("Client jsPDF fallback to server PDF endpoint:", err);
+      try {
+        const resp = await fetch("/api/bills/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order,
+            currencySymbol,
+            brandName,
+            download: true,
+          }),
+        });
+        if (!resp.ok) throw new Error("Failed to fetch server PDF invoice.");
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${brandName.replace(/[^a-zA-Z0-9]+/g, "_")}_Invoice_${
+          order.billNumber || order.id
+        }.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } catch (serverErr) {
+        console.error("Failed to download PDF receipt:", serverErr);
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -332,7 +389,7 @@ Thank you for shopping with Thread Den Streetwear!
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] overflow-y-auto flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className={`fixed inset-0 backdrop-blur-md transition-opacity ${
@@ -1587,12 +1644,23 @@ Thank you for shopping with Thread Den Streetwear!
                   </div>
 
                   {(!userOrders || userOrders.length === 0) ? (
-                    <div className="text-center py-10 border border-dashed rounded-2xl p-6">
-                      <Receipt className="w-8 h-8 text-zinc-400 mx-auto mb-2 opacity-50" />
-                      <p className="text-xs text-zinc-400">You haven't placed any orders with this account yet.</p>
-                      <p className="text-[11px] text-zinc-500 mt-1">
-                        When you complete an online payment, tax invoice receipts will appear here automatically!
-                      </p>
+                    <div className="text-center py-10 border border-dashed rounded-2xl p-6 space-y-3">
+                      <Receipt className="w-8 h-8 text-zinc-400 mx-auto opacity-50" />
+                      <div>
+                        <p className="text-xs text-zinc-400">You haven't placed any orders with this account yet.</p>
+                        <p className="text-[11px] text-zinc-500 mt-1">
+                          When you complete an online payment, tax invoice receipts will appear here automatically!
+                        </p>
+                      </div>
+                      <a
+                        href="/api/bills/sample.pdf"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all"
+                        id="sample-payment-receipt-pdf-link"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Preview Sample Payment Receipt PDF
+                      </a>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -1731,8 +1799,13 @@ Thank you for shopping with Thread Den Streetwear!
             {/* Invoice Meta Grid */}
             <div className="p-3.5 rounded-2xl bg-zinc-950/40 border border-zinc-800/80 font-mono text-xs grid grid-cols-2 gap-3">
               <div>
-                <span className="text-[10px] text-zinc-400 block uppercase">Invoice No</span>
-                <span className="font-bold text-emerald-400">{selectedOrderReceipt.id}</span>
+                <span className="text-[10px] text-zinc-400 block uppercase">Invoice / Bill No</span>
+                <span className="font-bold text-emerald-400">
+                  {selectedOrderReceipt.billNumber || `BILL-${selectedOrderReceipt.id}`}
+                </span>
+                <span className="text-[10px] text-zinc-500 block mt-0.5">
+                  Order: {selectedOrderReceipt.id}
+                </span>
               </div>
               <div>
                 <span className="text-[10px] text-zinc-400 block uppercase">Order Date</span>
@@ -1740,19 +1813,34 @@ Thank you for shopping with Thread Den Streetwear!
               </div>
               <div>
                 <span className="text-[10px] text-zinc-400 block uppercase">Payment Status</span>
-                <span className="font-bold text-emerald-500 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> PAID
+                <span
+                  className={`font-bold flex items-center gap-1 ${
+                    selectedOrderReceipt.paymentStatus === "paid"
+                      ? "text-emerald-500"
+                      : "text-amber-400"
+                  }`}
+                >
+                  <CheckCircle2 className="w-3 h-3" />
+                  {selectedOrderReceipt.paymentStatus === "paid" ? "PAID" : "COD PENDING"}
                 </span>
               </div>
               <div>
                 <span className="text-[10px] text-zinc-400 block uppercase">Payment Method</span>
                 <span className="font-bold">{selectedOrderReceipt.paymentMethod || "Online Gateway"}</span>
               </div>
+              {(selectedOrderReceipt.razorpayPaymentId || selectedOrderReceipt.transactionId) && (
+                <div className="col-span-2 pt-1.5 border-t border-zinc-800/70">
+                  <span className="text-[10px] text-zinc-400 block uppercase">Transaction / Razorpay Pay ID</span>
+                  <span className="font-bold text-zinc-200 break-all">
+                    {selectedOrderReceipt.razorpayPaymentId || selectedOrderReceipt.transactionId}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Customer Info */}
             <div className="text-xs space-y-1">
-              <h4 className="font-mono text-[10px] uppercase font-bold text-zinc-400">Billed To & Destination</h4>
+              <h4 className="font-mono text-[10px] uppercase font-bold text-zinc-400">Billed To &amp; Destination</h4>
               <p className="font-bold text-zinc-200">{selectedOrderReceipt.customerName} • {selectedOrderReceipt.customerPhone}</p>
               {selectedOrderReceipt.customerAddress && (
                 <p className="text-[11px] text-zinc-400 leading-snug">{selectedOrderReceipt.customerAddress}</p>
@@ -1787,25 +1875,60 @@ Thank you for shopping with Thread Den Streetwear!
             <div className="space-y-1.5 pt-2 border-t border-zinc-800 text-xs font-mono">
               <div className="flex justify-between text-zinc-400">
                 <span>Subtotal</span>
-                <span>{currencySymbol}{selectedOrderReceipt.totalAmount.toLocaleString()}</span>
+                <span>
+                  {currencySymbol}
+                  {Math.max(
+                    0,
+                    selectedOrderReceipt.totalAmount -
+                      (selectedOrderReceipt.deliveryMethod === "delivery" ? 100 : 0)
+                  ).toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between text-zinc-400">
-                <span>Shipping & Courier Handling</span>
-                <span className="text-emerald-400">FREE</span>
+                <span>Shipping &amp; Courier Handling</span>
+                <span className={selectedOrderReceipt.deliveryMethod === "delivery" ? "text-zinc-200" : "text-emerald-400"}>
+                  {selectedOrderReceipt.deliveryMethod === "delivery" ? `${currencySymbol}100` : "FREE"}
+                </span>
               </div>
               <div className="flex justify-between text-zinc-400">
-                <span>Taxes & GST (Included)</span>
-                <span>{currencySymbol}0</span>
+                <span>GST (5% Included)</span>
+                <span>
+                  {currencySymbol}
+                  {Math.round(selectedOrderReceipt.totalAmount * 0.0476).toLocaleString()}
+                </span>
               </div>
               <div className="flex justify-between font-bold text-sm text-emerald-400 pt-2 border-t border-zinc-800">
-                <span>Grand Total Paid</span>
+                <span>
+                  {selectedOrderReceipt.paymentStatus === "paid" ? "Grand Total Paid" : "Total Payable (COD)"}
+                </span>
                 <span>{currencySymbol}{selectedOrderReceipt.totalAmount.toLocaleString()}</span>
               </div>
             </div>
 
             {/* Receipt Action Buttons */}
             <div className="pt-3 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-2 print:hidden">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadOrderPdf(selectedOrderReceipt)}
+                  className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
+                  id="modal-download-pdf-receipt-btn"
+                >
+                  <Download className="w-4 h-4" /> Download PDF Receipt
+                </button>
+
+                {(selectedOrderReceipt.pdfUrl || selectedOrderPdfUrl) && (
+                  <a
+                    href={selectedOrderReceipt.pdfUrl || selectedOrderPdfUrl || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-emerald-400 transition-all flex items-center gap-1.5 border border-zinc-700"
+                    id="modal-open-pdf-receipt-btn"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> Open PDF
+                  </a>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1815,26 +1938,26 @@ Thank you for shopping with Thread Den Streetwear!
                       console.warn(e);
                     }
                   }}
-                  className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-500 text-zinc-950 hover:bg-emerald-400 transition-all flex items-center gap-1.5 shadow-md"
+                  className="px-3 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all flex items-center gap-1.5 border border-zinc-700 cursor-pointer"
                   id="print-receipt-btn"
                 >
-                  <Printer className="w-4 h-4" /> Print / Save as PDF
+                  <Printer className="w-3.5 h-3.5" /> Print
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleDownloadReceiptTxt(selectedOrderReceipt)}
-                  className="px-3 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all flex items-center gap-1.5 border border-zinc-700"
+                  className="px-3 py-2 text-xs font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all flex items-center gap-1.5 border border-zinc-700 cursor-pointer"
                   id="download-text-receipt-btn"
                 >
-                  <Download className="w-3.5 h-3.5 text-emerald-400" /> Export Summary
+                  <Download className="w-3.5 h-3.5 text-zinc-400" /> .TXT
                 </button>
               </div>
 
               <button
                 type="button"
                 onClick={() => setSelectedOrderReceipt(null)}
-                className="px-3.5 py-2 text-xs font-bold text-zinc-400 hover:text-white"
+                className="px-3.5 py-2 text-xs font-bold text-zinc-400 hover:text-white cursor-pointer"
               >
                 Close
               </button>

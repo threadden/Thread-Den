@@ -61,7 +61,7 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader(
     "Permissions-Policy",
-    "camera=(self), microphone=(), geolocation=(), payment=(self), usb=()"
+    'camera=(self), microphone=(), geolocation=(), payment=(self "https://api.razorpay.com" "https://checkout.razorpay.com"), usb=()'
   );
   next();
 });
@@ -150,7 +150,7 @@ Your role:
  */
 app.post("/api/chat", async (req, res) => {
   try {
-    const { messages, model = "gemini-3.8-flash", role = "stylist", customInstruction } = req.body || {};
+    const { messages, model = "gemini-4-hydrogen", role = "stylist", customInstruction } = req.body || {};
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: "Missing or invalid 'messages' array in request body." });
@@ -158,13 +158,17 @@ app.post("/api/chat", async (req, res) => {
 
     const client = getGeminiClient();
     if (!client) {
-      throw new Error("Gemini API key is not configured on the server. Please add your key in Settings > Secrets.");
+      return res.status(503).json({
+        error: "Gemini API key is not configured on the server. Please add a key in Settings > Secrets.",
+        code: "no_key",
+      });
     }
 
     const systemInstruction = customInstruction || SYSTEM_INSTRUCTIONS[role] || SYSTEM_INSTRUCTIONS.stylist;
 
-    const validModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-4-argon"];
-    const targetModel = validModels.includes(model) ? model : "gemini-3.8-flash";
+    const validModels = ["gemini-4-hydrogen", "gemini-3.1-flash-lite", "gemini-4-argon"];
+    const normalizedModel = model === "gemini-3.8-flash" ? "gemini-4-hydrogen" : model;
+    const targetModel = validModels.includes(normalizedModel) ? normalizedModel : "gemini-4-hydrogen";
 
     const formattedContents = messages.slice(-24).map((m: { role: string; text?: string; content?: string }) => ({
       role: m.role === "assistant" || m.role === "model" ? "model" : "user",
@@ -186,8 +190,7 @@ app.post("/api/chat", async (req, res) => {
     const reply = response.text || "I'm here to help you style and select the best streetwear cuts.";
     return res.json({ reply });
   } catch (error: any) {
-    console.error("Gemini Chat API Error:", error);
-    let errMsg = error.message || "Failed to generate AI response from Gemini.";
+    let errMsg = error?.message || "Failed to generate AI response from Gemini.";
     try {
       if (typeof errMsg === "string" && (errMsg.startsWith("{") || errMsg.includes('"error"'))) {
         const parsed = JSON.parse(errMsg);
@@ -199,41 +202,18 @@ app.post("/api/chat", async (req, res) => {
       // keep original
     }
 
-    const reqMessages = req.body?.messages;
-    const lastUserMsg = (Array.isArray(reqMessages) && reqMessages.length > 0 ? reqMessages[reqMessages.length - 1]?.text || "" : "").toLowerCase();
-    let fallbackReply = "";
+    const isBilling = /free tier is not available|billing|paid tier|quota|RESOURCE_EXHAUSTED/i.test(errMsg);
+    const isAuth = /API_KEY_INVALID|PERMISSION_DENIED|403/i.test(errMsg);
+    const status = isBilling ? 402 : isAuth ? 403 : 502;
+    const friendlyError = isBilling
+      ? "Gemini API requires a billing-enabled API key for this project. Select or update your key in Settings > Secrets."
+      : isAuth
+      ? "Gemini API rejected the key. Please check your GEMINI_API_KEY in Settings > Secrets."
+      : errMsg;
 
-    if (
-      lastUserMsg.includes("size") ||
-      lastUserMsg.includes("fit") ||
-      lastUserMsg.includes("kg") ||
-      lastUserMsg.includes("cm") ||
-      lastUserMsg.includes("height")
-    ) {
-      fallbackReply = `📏 **DEN AI Fit Recommendation:**\n\nFor a signature drop-shoulder oversized look on our **240+ GSM heavyweight blanks**:\n- **Medium (Chest 42", Length 29")**: Perfect if you are around 5'8" - 5'10" (65-75kg) wanting relaxed drape without being too long.\n- **Large (Chest 44", Length 30")**: Ideal for 5'10" - 6'1" (75-85kg) for a boxy streetwear profile.\n- **Garment Tip**: Our combed cotton is preshrunk. Wash in cold water and hang dry to maintain collar rib stiffness!`;
-    } else if (
-      lastUserMsg.includes("color") ||
-      lastUserMsg.includes("pair") ||
-      lastUserMsg.includes("style") ||
-      lastUserMsg.includes("outfit")
-    ) {
-      fallbackReply = `👟 **DEN AI Styling Guide:**\n\n- **Heavyweight Pitch Black**: Pairs cleanly with vintage washed grey denim or olive cargo pants and low-top retro sneakers.\n- **Vintage Sand / Cream**: Looks best with raw indigo denim or dark charcoal sweatpants.\n- **Acid Wash Slate**: Elevate it with monochromatic black utility pants and minimalist silver accessories.`;
-    } else if (
-      lastUserMsg.includes("margin") ||
-      lastUserMsg.includes("resell") ||
-      lastUserMsg.includes("price") ||
-      lastUserMsg.includes("wholesale") ||
-      lastUserMsg.includes("profit")
-    ) {
-      fallbackReply = `💼 **DEN AI Reseller Strategy:**\n\n- **Wholesale Base Cost**: Sourced at ~₹600 - ₹750/unit.\n- **Recommended Retail Price**: ₹1,500 - ₹2,200/unit.\n- **Gross Margin**: 55% - 65%.\n- **Why it sells**: 240+ GSM combed cotton with high-density collar ribbing looks and feels like international luxury streetwear brands, allowing premium retail margins.`;
-    } else {
-      fallbackReply = `✨ **DEN AI Streetwear Stylist:**\n\nI can help you explore sizing, drop-shoulder silhouettes, fabric care for 240+ GSM heavyweight blanks, or calculate wholesale reseller margins for **THREAD DEN**!\n\n*(Note: To connect directly to real-time Gemini reasoning, ensure your billing-enabled Gemini API key is configured in Settings > Secrets).*`;
-    }
-
-    return res.json({
-      reply: fallbackReply,
-      warning: errMsg,
-      isFallback: true,
+    return res.status(status).json({
+      error: friendlyError,
+      code: isBilling ? "billing_required" : isAuth ? "invalid_key" : "api_error",
     });
   }
 });

@@ -34,7 +34,7 @@ export default function PushNotificationCenter({
 }: PushNotificationCenterProps) {
   return (
     <div 
-      className="fixed top-20 right-4 z-50 w-full max-w-sm flex flex-col gap-3 pointer-events-none px-4 sm:px-0"
+      className="fixed top-20 right-4 z-40 w-full max-w-sm flex flex-col gap-3 pointer-events-none px-4 sm:px-0"
       id="push-notification-center"
     >
       {/* Sound Status & Permission Quick Bar (Only shown if notifications exist or as a subtle helper) */}

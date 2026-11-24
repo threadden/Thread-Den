@@ -121,6 +121,9 @@ interface PendingGatewayOrderState {
 }
 
 const DEFAULT_RAZORPAY_ME_URL = "https://razorpay.me/@johnraj";
+const ENV_RAZORPAY_KEY_ID =
+  (import.meta as unknown as { env?: Record<string, string | undefined> }).env
+    ?.VITE_RAZORPAY_KEY_ID?.trim() || null;
 
 function loadRazorpayCheckoutScript(): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
@@ -228,8 +231,21 @@ export default function CartSidebar({
   // Dispatch Notifications & Sample Bill State
   const [dispatchStatus, setDispatchStatus] = useState<OrderDispatchStatus | null>(null);
   const [generatedOrderPdf, setGeneratedOrderPdf] = useState<GeneratedOrderPdfResult | null>(null);
+  const [localPdfPreviewUrl, setLocalPdfPreviewUrl] = useState<string | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
   const [isResendingBill, setIsResendingBill] = useState(false);
+
+  useEffect(() => {
+    if (!generatedOrderPdf?.blob) {
+      setLocalPdfPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(generatedOrderPdf.blob);
+    setLocalPdfPreviewUrl(objectUrl);
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [generatedOrderPdf]);
 
   // Auto-fill from signed-in user profile
   useEffect(() => {
@@ -852,8 +868,17 @@ export default function CartSidebar({
           `Opening Razorpay Checkout with locked ${currencySymbol}${totalAmount.toLocaleString()}...`
         );
 
+        const checkoutKey = session.keyId || razorpayConfig.keyId || ENV_RAZORPAY_KEY_ID;
+        if (!checkoutKey) {
+          setIsPaying(false);
+          setPayProgress(0);
+          setPayStatusText("");
+          setPaymentError("Razorpay public Key ID is missing. Configure RAZORPAY_KEY_ID / VITE_RAZORPAY_KEY_ID.");
+          return;
+        }
+
         const rzpOptions: Record<string, any> = {
-          key: session.keyId,
+          key: checkoutKey,
           amount: session.amount,
           currency: "INR",
           name: brandName,
@@ -1370,7 +1395,7 @@ export default function CartSidebar({
                   </span>
                 </div>
 
-                {(dispatchStatus?.pdfUrl || createdOrder.pdfUrl) && (
+                {(dispatchStatus?.pdfUrl || createdOrder.pdfUrl || localPdfPreviewUrl) && (
                   <div
                     className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 ${
                       isDark
@@ -1386,11 +1411,12 @@ export default function CartSidebar({
                       <div className="text-[11px] font-mono truncate">
                         {dispatchStatus?.pdfFilename ||
                           createdOrder.pdfFilename ||
+                          generatedOrderPdf?.filename ||
                           `${createdOrder.billNumber}.pdf`}
                       </div>
                     </div>
                     <a
-                      href={dispatchStatus?.pdfUrl || createdOrder.pdfUrl}
+                      href={dispatchStatus?.pdfUrl || createdOrder.pdfUrl || localPdfPreviewUrl || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-2.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-display font-bold text-[10px] flex items-center gap-1 shrink-0"

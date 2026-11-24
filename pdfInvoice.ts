@@ -643,6 +643,72 @@ export function getStoredPdfBill(billNumber: string): StoredBillRecord | undefin
 
 export function registerBillPdfRoutes(app: express.Application) {
   /**
+   * Stream a sample post-payment Razorpay Payment Receipt PDF for instant preview/download
+   */
+  app.get("/api/bills/sample.pdf", async (req, res) => {
+    try {
+      const download = req.query.download === "1" || req.query.download === "true";
+      const sampleOrder: PdfOrderPayload = {
+        id: "ORD-842190",
+        billNumber: "BILL-TD-2026-842190",
+        customerName: "Aarav Sharma",
+        customerPhone: "+91 98400 12345",
+        customerEmail: "aarav.sharma@example.com",
+        customerAddress: "42, Anna Salai, Teynampet, Chennai, Tamil Nadu - 600018",
+        deliveryMethod: "delivery",
+        items: [
+          {
+            productId: "td-01",
+            productName: "Obsidian Heavyweight Oversized Tee (280 GSM)",
+            size: "L",
+            color: "Washed Charcoal",
+            price: 1299,
+            quantity: 1,
+          },
+          {
+            productId: "td-04",
+            productName: "Tokyo Drift Puff-Print Drop Shoulder Tee",
+            size: "M",
+            color: "Off-White",
+            price: 1499,
+            quantity: 1,
+          },
+        ],
+        totalAmount: 2898,
+        status: "completed",
+        createdAt: new Date().toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        paymentChannel: "upi",
+        paymentMethod: "Razorpay UPI (@johnraj)",
+        paymentStatus: "paid",
+        transactionId: "pay_SampleRzp918273",
+        razorpayOrderId: "order_SampleRzp451200",
+        razorpayPaymentId: "pay_SampleRzp918273",
+        razorpaySignature: "sample_hmac_sha256_verified_8f31c9a04e2b",
+        razorpayMeUrl: "https://razorpay.me/@johnraj",
+        gatewayConfirmedAt: new Date().toISOString(),
+      };
+
+      const buffer = await generateInvoicePdfBuffer(sampleOrder, "₹", "THREAD DEN");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `${download ? "attachment" : "inline"}; filename="THREAD_DEN_Sample_Payment_Receipt.pdf"`
+      );
+      res.setHeader("Cache-Control", "no-store");
+      return res.send(buffer);
+    } catch (err: any) {
+      console.error("Sample PDF bill error:", err);
+      return res.status(500).json({ error: err?.message || "Failed to generate sample PDF receipt." });
+    }
+  });
+
+  /**
    * Serve a stored generated PDF invoice by billNumber
    */
   app.get("/api/bills/:billNumber.pdf", (req, res) => {

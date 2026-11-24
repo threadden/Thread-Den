@@ -64,7 +64,7 @@ export default function GeminiChatbot({
 }: GeminiChatbotProps) {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [selectedRole, setSelectedRole] = useState<"stylist" | "sizing" | "reseller">("stylist");
-  const [selectedModel, setSelectedModel] = useState<"gemini-3.8-flash" | "gemini-3.1-flash-lite">("gemini-3.8-flash");
+  const [selectedModel, setSelectedModel] = useState<"gemini-4-hydrogen" | "gemini-3.1-flash-lite">("gemini-4-hydrogen");
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -274,7 +274,7 @@ export default function GeminiChatbot({
                   <div className="flex items-center gap-1.5">
                     <h3 className="font-display font-black text-sm tracking-tight">DEN AI</h3>
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-amber-400 text-zinc-950">
-                      Gemini 3.8
+                      Gemini 4
                     </span>
                   </div>
                   <p className="text-[11px] text-zinc-500 font-mono -mt-0.5">
@@ -365,7 +365,7 @@ export default function GeminiChatbot({
                 type="button"
                 onClick={() =>
                   setSelectedModel(
-                    selectedModel === "gemini-3.8-flash" ? "gemini-3.1-flash-lite" : "gemini-3.8-flash"
+                    selectedModel === "gemini-4-hydrogen" ? "gemini-3.1-flash-lite" : "gemini-4-hydrogen"
                   )
                 }
                 className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer ${

@@ -28,13 +28,20 @@ import path from "path";
 
 type GetClient = () => GoogleGenAI | null;
 
-const IMAGE_MODEL_FALLBACKS = ["gemini-3.1-flash-image", "gemini-nano-banana-2.1", "gemini-3-pro-image"];
+const IMAGE_MODEL_FALLBACKS = ["gemini-3.1-flash-lite-image", "gemini-nano-banana-2.1", "gemini-3-pro-image"];
 const TEXT_MODELS = Array.from(
-  new Set([process.env.GEMINI_TEXT_MODEL?.trim(), "gemini-3.8-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"].filter(Boolean) as string[])
+  new Set([process.env.GEMINI_TEXT_MODEL?.trim(), "gemini-4-hydrogen", "gemini-3.1-flash-lite"].filter(Boolean) as string[])
 );
 const MAX_REMOTE_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_DATA_URL_BYTES = 6 * 1024 * 1024;
 const MAX_DATA_URL_CHARS = Math.ceil((MAX_DATA_URL_BYTES * 4) / 3) + 128;
+
+function isProjectBillingOrAuthError(msg: string): boolean {
+  return /free tier is not available|billing|API_KEY_INVALID|PERMISSION_DENIED|paid tier|quota|RESOURCE_EXHAUSTED/i.test(msg);
+}
+
+let blockedTextApiKey = "";
+let blockedTextUntilMs = 0;
 
 /** Last run details, accessible at GET /api/stylist/status for real-time debugging */
 const lastRuns: Record<string, any> = {};
@@ -112,6 +119,14 @@ function isModelMissing(msg: string): boolean {
 
 /** Text/vision JSON call with model fallbacks */
 async function generateJson(client: GoogleGenAI, parts: any[]): Promise<any> {
+  const activeKey = process.env.GEMINI_API_KEY?.trim() || "";
+  if (blockedTextApiKey && blockedTextApiKey === activeKey && Date.now() < blockedTextUntilMs) {
+    throw new ImageGenError(
+      "Gemini API requires a billing-enabled project key for this model.",
+      "billing_required"
+    );
+  }
+
   let lastErr: any;
   for (const model of TEXT_MODELS) {
     try {
@@ -126,12 +141,19 @@ async function generateJson(client: GoogleGenAI, parts: any[]): Promise<any> {
       );
       if (!r.text) throw new Error("empty response");
       const cleaned = r.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```$/, "");
+      blockedTextApiKey = "";
+      blockedTextUntilMs = 0;
       lastRuns.text = { ok: true, model, at: new Date().toISOString() };
       return JSON.parse(cleaned);
     } catch (e: any) {
       lastErr = e;
-      lastRuns.text = { ok: false, model, error: truncateErr(cleanGeminiError(e)), at: new Date().toISOString() };
-      console.warn(`[stylist] text model ${model} failed:`, cleanGeminiError(e));
+      const errMsg = cleanGeminiError(e);
+      lastRuns.text = { ok: false, model, error: truncateErr(errMsg), at: new Date().toISOString() };
+      if (isProjectBillingOrAuthError(errMsg)) {
+        blockedTextApiKey = activeKey;
+        blockedTextUntilMs = Date.now() + 5 * 60 * 1000;
+        throw new ImageGenError(errMsg, "billing_required");
+      }
     }
   }
   throw lastErr;
@@ -324,8 +346,10 @@ async function generateWithGemini(
     } catch (err: any) {
       if (err instanceof ImageGenError) throw err;
       lastError = cleanGeminiError(err);
+      if (isProjectBillingOrAuthError(lastError)) {
+        throw new ImageGenError(lastError, "billing_required");
+      }
       if (isModelMissing(lastError)) {
-        console.warn(`[stylist] image model "${model}" unavailable, trying next…`);
         continue;
       }
       throw new ImageGenError(lastError, "api_error");
@@ -695,8 +719,10 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
           },
         ]);
         features = { ...features, ...parsed };
-      } catch (e) {
-        console.warn("[stylist] feature extraction fallback:", cleanGeminiError(e));
+      } catch (e: any) {
+        if (!(e instanceof ImageGenError && e.code === "billing_required")) {
+          console.warn("[stylist] feature extraction fallback:", cleanGeminiError(e));
+        }
       }
     })();
 
@@ -955,6 +981,8 @@ Do not guess age, ethnicity, religion or any sensitive attribute.`,
       return res.json({ verdict });
     }
 
+    let aiNotice: string | undefined;
+    let billingRequired = false;
     try {
       const look = tryOnImage ? parseDataUrl(tryOnImage) : null;
       const prompt = `You are "DEN AI", an honest expert fashion stylist for THREAD DEN (specializing in Men's & Women's Western Tees, Western Shirts, Sarees, and Chudidhars). ${
@@ -995,10 +1023,16 @@ Return ONLY valid JSON with keys:
         };
         verdict.fitScore = Math.max(0, Math.min(100, Math.round(Number(verdict.fitScore) || 80)));
       }
-    } catch (e) {
-      console.warn("[stylist] analyze-fit AI evaluation fallback:", cleanGeminiError(e));
+    } catch (e: any) {
+      const msg = cleanGeminiError(e);
+      if (e instanceof ImageGenError && e.code === "billing_required") {
+        billingRequired = true;
+        aiNotice = "Live AI fit scoring requires a billing-enabled Gemini API key in Settings > Secrets.";
+      } else {
+        aiNotice = msg;
+      }
     }
 
-    return res.json({ verdict });
+    return res.json({ verdict, aiNotice, billingRequired });
   });
 }
